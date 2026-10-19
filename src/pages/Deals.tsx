@@ -13,6 +13,7 @@ import { PageHeader, Progress } from '@/components/ui/Misc';
 import { DataTable, type Column } from '@/components/ui/Table';
 import { EmptyState, ErrorState } from '@/components/ui/Feedback';
 import type { Deal, Paged } from '@/types';
+import { PropertyThumb } from '@/components/domain/PropertyGallery';
 
 export default function Deals() {
   const navigate = useNavigate();
@@ -46,11 +47,14 @@ export default function Deals() {
       key: 'property',
       header: 'Property',
       cell: (d) => (
-        <div className="whitespace-nowrap">
-          <p className="text-stone-700">{d.property_project}</p>
-          <p className="text-[12px] text-stone-400">
-            {d.property_unit} · {d.property_type}
-          </p>
+        <div className="flex items-center gap-2.5 whitespace-nowrap">
+          <PropertyThumb id={d.property_id} type={d.property_type} project={d.property_project} />
+          <div>
+            <p className="text-stone-700">{d.property_project}</p>
+            <p className="text-[12px] text-stone-400">
+              {d.property_unit} · {d.property_type}
+            </p>
+          </div>
         </div>
       ),
     },

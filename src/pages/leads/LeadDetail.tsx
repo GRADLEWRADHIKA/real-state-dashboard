@@ -19,7 +19,7 @@ import { LeadFormModal } from '@/components/domain/LeadForms';
 import { FollowupFormModal, OutcomeModal, SiteVisitFormModal, TaskFormModal } from '@/components/domain/ScheduleForms';
 import { ConvertLeadModal } from '@/components/domain/FinanceForms';
 import { DocumentList, UploadDocumentModal } from '@/components/domain/Documents';
-import { PropertyArt } from '@/components/domain/PropertyArt';
+import { PropertyThumb } from '@/components/domain/PropertyGallery';
 import type { Activity, DocumentItem, Followup, Lead, Property, SiteVisit, Task } from '@/types';
 
 type LeadDetailData = Lead & {
@@ -606,7 +606,7 @@ export default function LeadDetail() {
             {p ? (
               <div className="px-5 pb-5">
                 <Link to={`/properties/${p.id}`} className="group block overflow-hidden rounded-xl border border-stone-100">
-                  <PropertyArt type={p.type} project={p.project} seed={p.id} className="h-36" label={p.unit_number} />
+                  <PropertyThumb id={p.id} type={p.type} project={p.project} className="h-36 w-full" />
                   <div className="p-3.5">
                     <div className="flex items-start justify-between gap-2">
                       <div>

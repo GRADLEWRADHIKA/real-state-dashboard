@@ -1,4 +1,4 @@
-# EstateFlow dashboard. The API (estateflow-backend) is deployed separately.
+# EstateFlow dashboard and public website. The API (estateflow-backend) is deployed separately.
 # In Netlify → Site configuration → Environment variables, set:
 #   VITE_API_URL = https://your-api-host.example.com   (no trailing slash, no /api)
 [build]

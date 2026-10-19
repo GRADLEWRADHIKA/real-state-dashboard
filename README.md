@@ -8,6 +8,8 @@ estateflow-dashboard (http://localhost:7340)  ──/api──▶  estateflow-ba
 
 The `shared/` folder is the common code. The backend and the app carry an identical copy.
 
+The public Starwiz website is part of this dashboard too (its code is in `site/`, which the app also carries). Visitors who are not signed in see it at `/`, with **Staff login** in the header; listings are at `/homes`, a property at `/homes/<slug>`, plus `/about` and `/contact`. Signed-in staff get the CRM at `/` and can still open the website pages. Only properties marked **Publish to website** appear.
+
 ## Before you start
 
 - **Node.js 22.22 or newer.** Install the latest "LTS" version from nodejs.org. Check with `node -v`.
@@ -36,7 +38,9 @@ $env:API_PROXY_TARGET="http://192.168.1.20:7341"; npm run dev
 2. Either connect Netlify to a Git repository that holds this folder, or build it yourself.
    - **From Git:** in Netlify choose Add new site → Import an existing project. `netlify.toml` already has the build settings (`npm run build`, publish `dist`). Under Site configuration → Environment variables, add `VITE_API_URL` = your backend address (no trailing slash, no `/api`).
    - **Manual upload:** run `npm run build`, open `dist/env.js` and set `apiUrl: 'https://estateflow-api.onrender.com'`, then drag the `dist` folder onto Netlify → Add new site → Deploy manually.
-3. Add the Netlify address to the backend's `CORS_ORIGINS` setting and restart the backend.
+3. Add the Netlify address to the backend's `CORS_ORIGINS` setting and restart the backend. If the website gets its own domain (e.g. `www.starwizrealty.com`), point it at this Netlify site and add it to `CORS_ORIGINS` too.
+
+The build also writes `sitemap.xml` (every published property, read from `VITE_API_URL` or `API_URL`) and a `robots.txt` that keeps search engines to the website pages. In `dist/env.js`, `appDownloadUrl` is the customer app link shown in the website footer (empty hides it).
 
 `dist/env.js` can be edited after deployment to point the site at a different backend, without rebuilding.
 
@@ -49,4 +53,4 @@ $env:API_PROXY_TARGET="http://192.168.1.20:7341"; npm run dev
 | `npm run build` | Production build into `dist/` |
 | `npm run preview` | Serves the built `dist/` on :7340, with the same `/api` forwarding |
 | `npm run typecheck` | Checks the TypeScript |
-| `npm run test:e2e` | Browser tests (18). They need `estateflow-backend` installed in the folder next to this one, or set `EF_BACKEND_DIR`, plus a browser: run `npx playwright install chromium` once |
+| `npm run test:e2e` | Browser tests (20). They need `estateflow-backend` installed in the folder next to this one, or set `EF_BACKEND_DIR`, plus a browser: run `npx playwright install chromium` once |

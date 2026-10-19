@@ -4,11 +4,15 @@ import { BrowserRouter } from 'react-router';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { TooltipProvider } from '@radix-ui/react-tooltip';
 import { Toaster } from 'sonner';
+import { configureSite } from '@estateflow/site';
 import { AuthProvider } from '@/lib/auth';
 import { ConfirmProvider } from '@/components/ui/Modal';
 import { RealtimeSync } from '@/lib/realtime';
+import { serverUrl } from '@/lib/api';
 import App from './App';
 import './index.css';
+
+configureSite({ apiUrl: serverUrl, appDownloadUrl: window.ESTATEFLOW_CONFIG?.appDownloadUrl });
 
 const queryClient = new QueryClient({
   defaultOptions: {

@@ -12,12 +12,13 @@ import { PropertyStatusBadge, StatusBadge } from '@/components/ui/Badge';
 import { PageHeader, Progress } from '@/components/ui/Misc';
 import { EmptyState, ErrorState, PageSkeleton } from '@/components/ui/Feedback';
 import { useConfirm } from '@/components/ui/Modal';
-import { PropertyArt } from '@/components/domain/PropertyArt';
 import { PropertyFormModal } from '@/components/domain/PropertyForm';
+import { GalleryManager, GalleryViewer } from '@/components/domain/PropertyGallery';
 import { DocumentList, UploadDocumentModal } from '@/components/domain/Documents';
 import type { DocumentItem, Property, SiteVisit } from '@/types';
 
 type Detail = Property & {
+  generating?: boolean;
   leads: {
     id: number;
     code: string;
@@ -148,11 +149,7 @@ export default function PropertyDetail() {
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-[1fr_380px]">
         <div className="min-w-0 space-y-5">
           <Card className="overflow-hidden">
-            <div className="grid grid-cols-1 gap-1 sm:grid-cols-3 sm:grid-rows-2">
-              <PropertyArt type={p.type} project={p.project} seed={p.id} className="h-56 sm:col-span-2 sm:row-span-2 sm:h-80" label={`${p.unit_number} · ${p.tower ?? p.project}`} />
-              <PropertyArt type={p.type === 'Villa' ? 'Apartment' : p.type === 'Plot' ? 'Villa' : 'Plot'} project={p.project} seed={p.id + 1} className="hidden h-full sm:block" />
-              <PropertyArt type={p.type === 'Shop' ? 'Office' : 'Shop'} project={p.project} seed={p.id + 2} className="hidden h-full sm:block" label="Township amenities" />
-            </div>
+            <GalleryViewer property={p} />
             <div className="grid grid-cols-1 gap-6 p-5 sm:p-6 lg:grid-cols-[1fr_auto]">
               <div>
                 <p className="label-xs">Specifications</p>
@@ -176,6 +173,14 @@ export default function PropertyDetail() {
               </div>
             </div>
           </Card>
+          {can.editProperties(user.role) && (
+            <Card>
+              <CardHeader title="Gallery" subtitle="Drag to reorder. The first image a visitor sees is the cover." />
+              <div className="p-5 pt-0">
+                <GalleryManager property={p} />
+              </div>
+            </Card>
+          )}
 
           <Card>
             <CardHeader title="Amenities" />

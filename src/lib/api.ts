@@ -4,7 +4,7 @@ export { ApiError, type Query };
 
 declare global {
   interface Window {
-    ESTATEFLOW_CONFIG?: { apiUrl?: string };
+    ESTATEFLOW_CONFIG?: { apiUrl?: string; appDownloadUrl?: string };
   }
 }
 

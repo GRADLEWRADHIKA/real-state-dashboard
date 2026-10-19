@@ -1,5 +1,6 @@
 import { lazy } from 'react';
 import { Navigate, Route, Routes, useLocation } from 'react-router';
+import { siteRoutes } from '@estateflow/site';
 import { homeFor, useAuth } from '@/lib/auth';
 import { AppShell, RequireRole } from '@/components/layout/AppShell';
 import { SplashScreen } from '@/components/layout/Brand';
@@ -52,8 +53,10 @@ export default function App() {
   return (
     <Routes>
       <Route path="/login" element={<LoginRoute />} />
+      {/* The public website: its home page is "/" for visitors; signed-in staff get the CRM there. */}
+      {siteRoutes({ withHome: !user, account: user ? { to: '/', label: 'Open the CRM' } : { to: '/login', label: 'Staff login' } })}
       <Route element={<AppShell />}>
-        <Route index element={user?.role === 'accounts' ? <Navigate to="/finance" replace /> : guard(SALES, <Dashboard />)} />
+        {user && <Route index element={user.role === 'accounts' ? <Navigate to="/finance" replace /> : guard(SALES, <Dashboard />)} />}
         <Route path="leads" element={guard(SALES, <LeadsList />)} />
         <Route path="leads/:id" element={guard(SALES, <LeadDetail />)} />
         <Route path="pipeline" element={guard(SALES, <Pipeline />)} />

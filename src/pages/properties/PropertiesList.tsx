@@ -15,6 +15,7 @@ import { PageHeader, Segmented } from '@/components/ui/Misc';
 import { DataTable, type Column } from '@/components/ui/Table';
 import { EmptyState, ErrorState, Skeleton } from '@/components/ui/Feedback';
 import { PropertyArt } from '@/components/domain/PropertyArt';
+import { PropertyCover } from '@/components/domain/PropertyGallery';
 import { PropertyFormModal } from '@/components/domain/PropertyForm';
 import type { Paged, Property } from '@/types';
 
@@ -91,7 +92,7 @@ export default function PropertiesList() {
         header: 'Property',
         cell: (p) => (
           <div className="flex items-center gap-3">
-            <PropertyArt type={p.type} project={p.project} seed={p.id} className="h-10 w-14 shrink-0 rounded-lg" />
+            <PropertyCover property={p} className="h-10 w-14 shrink-0 overflow-hidden rounded-lg" sizes="64px" />
             <div className="min-w-0">
               <p className="font-semibold whitespace-nowrap text-ink">{p.name}</p>
               <p className="text-[12px] text-stone-400">{p.code}</p>
@@ -251,7 +252,7 @@ export default function PropertiesList() {
           {data.data.map((p) => (
             <Link key={p.id} to={`/properties/${p.id}`} className="card group overflow-hidden transition-shadow hover:shadow-pop">
               <div className="relative">
-                <PropertyArt type={p.type} project={p.project} seed={p.id} className="h-40" />
+                <PropertyCover property={p} className="h-44 overflow-hidden" sizes="(min-width: 1536px) 25vw, (min-width: 1280px) 33vw, (min-width: 640px) 50vw, 100vw" badge />
                 <PropertyStatusBadge status={p.status} className="absolute top-3 left-3 bg-white/90 backdrop-blur" />
                 <span className="absolute top-3 right-3 rounded-md bg-white/90 px-2 py-0.5 text-[11.5px] font-bold text-stone-700 backdrop-blur">{p.type}</span>
               </div>
@@ -302,7 +303,7 @@ export default function PropertiesList() {
             onRowClick={(p) => navigate(`/properties/${p.id}`)}
             mobileCard={(p) => (
               <div className="flex gap-3">
-                <PropertyArt type={p.type} project={p.project} seed={p.id} className="h-16 w-20 shrink-0 rounded-lg" />
+                <PropertyCover property={p} className="h-16 w-20 shrink-0 overflow-hidden rounded-lg" sizes="96px" />
                 <div className="min-w-0 flex-1">
                   <div className="flex items-start justify-between gap-2">
                     <p className="truncate text-[14px] font-bold text-ink">

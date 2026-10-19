@@ -5,7 +5,7 @@ import { PROPERTY_STATUSES, PROPERTY_TYPES } from '@/lib/utils';
 import { useAction, useAgents } from '@/hooks/queries';
 import { required, useForm } from '@/hooks/useForm';
 import { Button } from '@/components/ui/Button';
-import { Field, Input, MoneyInput, Select, Textarea } from '@/components/ui/Form';
+import { Checkbox, Field, Input, MoneyInput, Select, Textarea } from '@/components/ui/Form';
 import { Modal } from '@/components/ui/Modal';
 import type { Property } from '@/types';
 
@@ -38,6 +38,10 @@ export function PropertyFormModal({ open, onClose, property, onSaved }: { open: 
       description: property?.description ?? '',
       amenities: property?.amenities ?? ([] as string[]),
       assigned_to: property?.assigned_to ? String(property.assigned_to) : '',
+      slug: property?.slug ?? '',
+      is_published: !!property?.is_published,
+      // New properties get illustrated starter images (rendered in the background).
+      generate_images: !property,
     },
     (v) => ({
       name: required(v.name),
@@ -63,6 +67,8 @@ export function PropertyFormModal({ open, onClose, property, onSaved }: { open: 
         area_sqft: Number(v.area_sqft),
         price: Number(v.price),
         assigned_to: v.assigned_to ? Number(v.assigned_to) : null,
+        slug: v.slug.trim() || null,
+        generate_images: editing ? undefined : v.generate_images,
       };
       return editing ? api.put<Property>(`/properties/${property!.id}`, body) : api.post<Property>('/properties', body);
     },
@@ -200,6 +206,13 @@ export function PropertyFormModal({ open, onClose, property, onSaved }: { open: 
         <Field label="Description" className="sm:col-span-2">
           {(id) => <Textarea id={id} rows={3} {...f.bind('description')} />}
         </Field>
+        <Field label="Web address" hint="Used on the public website: /properties/<address>. Leave empty to create one from the project and unit.">
+          {(id) => <Input id={id} placeholder="green-valley-villas-v-14" {...f.bind('slug')} />}
+        </Field>
+        <div className="flex flex-col justify-center gap-2.5 sm:pt-5">
+          <Checkbox label="Publish to website" checked={f.values.is_published} onChange={(e) => f.set('is_published', e.target.checked)} />
+          {!editing && <Checkbox label="Generate starter images" checked={f.values.generate_images} onChange={(e) => f.set('generate_images', e.target.checked)} />}
+        </div>
       </div>
     </Modal>
   );

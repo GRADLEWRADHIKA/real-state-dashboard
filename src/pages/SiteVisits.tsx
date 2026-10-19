@@ -17,6 +17,7 @@ import { useConfirm } from '@/components/ui/Modal';
 import { OutcomeModal, SiteVisitFormModal } from '@/components/domain/ScheduleForms';
 import { CalendarPill, MonthCalendar, currentMonth, monthRange } from '@/components/ui/Calendar';
 import type { Paged, SiteVisit } from '@/types';
+import { PropertyThumb } from '@/components/domain/PropertyGallery';
 
 type Range = 'today' | 'upcoming' | 'past' | 'all' | 'calendar';
 
@@ -141,6 +142,7 @@ export default function SiteVisits() {
                       <span className="text-[15px] font-extrabold text-ink">{fmtTime(v.visit_time)}</span>
                       <StatusBadge status={v.status} className="sm:mt-1.5" />
                     </div>
+                    <PropertyThumb id={v.property_id} project={v.property_project} className="hidden h-12 w-16 rounded-lg sm:block" />
                     <div className="min-w-0 flex-1">
                       <Link to={`/leads/${v.lead_id}`} className="text-[14.5px] font-bold text-ink hover:text-brand-800">
                         {v.lead_name}

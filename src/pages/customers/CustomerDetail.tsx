@@ -20,7 +20,7 @@ import { ActivityTimeline } from '@/components/domain/Timeline';
 import { FinancialSummary, InstallmentTable } from '@/components/domain/FinanceViews';
 import { RecordPaymentModal } from '@/components/domain/FinanceForms';
 import { DocumentList, UploadDocumentModal } from '@/components/domain/Documents';
-import { PropertyArt } from '@/components/domain/PropertyArt';
+import { PropertyThumb } from '@/components/domain/PropertyGallery';
 import type { Activity, Customer, CustomerRequest, Deal, DocumentItem, Financials, Installment, Property, Transaction } from '@/types';
 
 type Detail = Customer & {
@@ -424,7 +424,7 @@ export default function CustomerDetail() {
             <CardHeader title="Property" />
             {c.property && (
               <Link to={`/properties/${c.property.id}`} className="group mx-5 mb-5 block overflow-hidden rounded-xl border border-stone-100">
-                <PropertyArt type={c.property.type} project={c.property.project} seed={c.property.id} className="h-32" label={c.property.unit_number} />
+                <PropertyThumb id={c.property.id} type={c.property.type} project={c.property.project} className="h-32 w-full" />
                 <div className="p-3.5">
                   <div className="flex items-start justify-between gap-2">
                     <div>
