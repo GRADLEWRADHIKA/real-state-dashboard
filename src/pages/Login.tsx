@@ -260,7 +260,7 @@ export default function LoginPage() {
               <br />
               <span className="text-gold-300">Every Deal.</span>
             </h1>
-            <p className="mt-5 max-w-md text-[15px] leading-relaxed text-brand-100/75">{BRAND.tagline} Leads, site visits, bookings, payments and installments for Starwiz Green Valley — in one connected workspace.</p>
+            <p className="mt-5 max-w-md text-[15px] leading-relaxed text-brand-100/75">{BRAND.tagline} Leads, site visits, bookings, payments and installments — in one connected workspace.</p>
             <ul className="mt-8 grid max-w-lg grid-cols-2 gap-x-6 gap-y-3 text-[13.5px] text-brand-100/85">
               {[
                 [Building2, 'Plots, villas, apartments & shops'],
@@ -282,7 +282,7 @@ export default function LoginPage() {
             <Skyline />
           </div>
           <div className="mt-6 flex items-center justify-between text-[12px] text-brand-200/55">
-            <span>Nigohan–Samesi Road, Mohanlalganj, Lucknow</span>
+            <span>Ashiyana, Lucknow</span>
             <PoweredBy tone="dark" />
           </div>
         </div>

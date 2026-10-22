@@ -1,4 +1,4 @@
-import { CalendarClock, IndianRupee } from 'lucide-react';
+import { CalendarClock, IndianRupee, MessageCircle } from 'lucide-react';
 import { Cell, Pie, PieChart, ResponsiveContainer } from 'recharts';
 import { fmtDate, inr, inrShort, relativeDay } from '@/lib/format';
 import { cn } from '@/lib/utils';
@@ -105,7 +105,31 @@ export function FinancialSummary({ fin, compact }: { fin: Financials; compact?: 
   );
 }
 
-export function InstallmentTable({ rows, onPay, showCustomer }: { rows: Installment[]; onPay?: (i: Installment) => void; showCustomer?: boolean }) {
+/** "Remind on WhatsApp" link for an unpaid installment (click-to-chat, opens WhatsApp with the message filled in). */
+export function WhatsAppRemind({ href, compact, className }: { href?: string; compact?: boolean; className?: string }) {
+  if (!href) return null;
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noreferrer"
+      aria-label="Remind on WhatsApp"
+      title="Remind on WhatsApp"
+      className={cn(
+        'inline-flex shrink-0 items-center justify-center gap-1.5 rounded-lg font-semibold whitespace-nowrap text-emerald-700 transition-colors hover:bg-emerald-50',
+        compact ? 'size-8' : 'h-8 px-2.5 text-[12.5px]',
+        className,
+      )}
+    >
+      <MessageCircle className="size-4" />
+      {!compact && 'Remind'}
+    </a>
+  );
+}
+
+export function InstallmentTable({ rows, onPay, showCustomer, remindHref }: { rows: Installment[]; onPay?: (i: Installment) => void; showCustomer?: boolean; remindHref?: (i: Installment) => string | undefined }) {
+  const remind = (i: Installment) => (remindHref && i.balance > 0 && i.status !== 'Paid' ? remindHref(i) : undefined);
+  const actions = !!onPay || !!remindHref;
   return (
     <>
       <ul className="divide-y divide-stone-100 md:hidden">
@@ -127,11 +151,14 @@ export function InstallmentTable({ rows, onPay, showCustomer }: { rows: Installm
                 <span className="num font-bold text-ink">{inr(i.amount)}</span>
                 {i.paid_amount > 0 && i.paid_amount < i.amount && <span> · paid {inr(i.paid_amount)}</span>}
               </div>
-              {onPay && i.balance > 0 && (
-                <Button size="sm" variant="subtle" icon={<IndianRupee />} onClick={() => onPay(i)}>
-                  Record
-                </Button>
-              )}
+              <div className="flex items-center gap-1">
+                <WhatsAppRemind href={remind(i)} />
+                {onPay && i.balance > 0 && (
+                  <Button size="sm" variant="subtle" icon={<IndianRupee />} onClick={() => onPay(i)}>
+                    Record
+                  </Button>
+                )}
+              </div>
             </div>
           </li>
         ))}
@@ -149,7 +176,7 @@ export function InstallmentTable({ rows, onPay, showCustomer }: { rows: Installm
               <th className="px-3 text-right">Balance</th>
               <th className="px-3 text-left">Status</th>
               <th className="hidden px-3 text-left 2xl:table-cell">Paid on</th>
-              {onPay && <th className="pr-5" />}
+              {actions && <th className="pr-5" />}
             </tr>
           </thead>
           <tbody>
@@ -173,13 +200,16 @@ export function InstallmentTable({ rows, onPay, showCustomer }: { rows: Installm
                   <StatusBadge status={i.status} />
                 </td>
                 <td className="hidden px-3 whitespace-nowrap text-stone-500 2xl:table-cell">{fmtDate(i.payment_date)}</td>
-                {onPay && (
+                {actions && (
                   <td className="py-2 pr-5 text-right">
-                    {i.balance > 0 && (
-                      <Button size="sm" variant={i.status === 'Overdue' ? 'primary' : 'secondary'} icon={<IndianRupee />} onClick={() => onPay(i)}>
-                        Record
-                      </Button>
-                    )}
+                    <div className="flex items-center justify-end gap-1">
+                      <WhatsAppRemind href={remind(i)} />
+                      {onPay && i.balance > 0 && (
+                        <Button size="sm" variant={i.status === 'Overdue' ? 'primary' : 'secondary'} icon={<IndianRupee />} onClick={() => onPay(i)}>
+                          Record
+                        </Button>
+                      )}
+                    </div>
                   </td>
                 )}
               </tr>

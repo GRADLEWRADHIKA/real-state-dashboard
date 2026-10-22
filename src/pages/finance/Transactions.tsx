@@ -19,6 +19,7 @@ import { RecordPaymentModal } from '@/components/domain/FinanceForms';
 import type { Customer, Installment, Paged, Transaction } from '@/types';
 
 const PERIODS = [
+  { value: '0', label: 'Today' },
   { value: '7', label: 'Last 7 days' },
   { value: '30', label: 'Last 30 days' },
   { value: '90', label: 'Last 90 days' },

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
 import { Eye, KeyRound, LockOpen, LogOut, MoreHorizontal, Pencil, Power, ShieldCheck, UserCog, UserPlus } from 'lucide-react';
+import { DESIGNATIONS } from '@estateflow/shared';
 import { api } from '@/lib/api';
 import { useUser } from '@/lib/auth';
 import { fmtDateTime, timeAgo } from '@/lib/format';
@@ -34,6 +35,10 @@ const ROLE_DESC: Record<Role, string> = {
   customer: 'Customer portal — property, payments and documents',
 };
 
+const CUSTOMER = 'Customer';
+/** The designation that matches a user: their title when it is one, else the first designation for their role. */
+const designationFor = (role: Role, title?: string | null) => (role === 'customer' ? CUSTOMER : (DESIGNATIONS.find((d) => d.title === title)?.title ?? DESIGNATIONS.find((d) => d.role === role)?.title ?? ''));
+
 function UserFormModal({ open, onClose, user, presetRole }: { open: boolean; onClose: () => void; user?: User | null; presetRole?: Role }) {
   const editing = !!user;
   const customers = useQuery({
@@ -53,6 +58,7 @@ function UserFormModal({ open, onClose, user, presetRole }: { open: boolean; onC
       role: (user?.role ?? presetRole ?? 'sales') as Role,
       phone: user?.phone ?? '',
       title: user?.title ?? '',
+      designation: user ? designationFor(user.role, user.title) : designationFor(presetRole ?? 'sales', null),
       password: '',
       customer_id: user?.customer_id ? String(user.customer_id) : '',
     },
@@ -69,11 +75,12 @@ function UserFormModal({ open, onClose, user, presetRole }: { open: boolean; onC
   }, [open]);
   const save = useAction(
     (v: typeof f.values) => {
+      const { designation, ...rest } = v;
       const body = {
-        ...v,
+        ...rest,
         customer_id: v.customer_id ? Number(v.customer_id) : null,
         phone: v.phone || null,
-        title: v.title || null,
+        title: (designation && designation !== CUSTOMER ? designation : rest.title) || null,
       };
       return editing ? api.put(`/users/${user!.id}`, body) : api.post('/users', body);
     },
@@ -102,13 +109,26 @@ function UserFormModal({ open, onClose, user, presetRole }: { open: boolean; onC
         <Field label="Email" required error={f.errors.email}>
           {(id) => <Input id={id} type="email" {...f.bind('email')} />}
         </Field>
-        <Field label="Role" className="sm:col-span-2">
+        <Field label="Designation" className="sm:col-span-2" hint="Sets what they can see and do in EstateFlow">
           {() => (
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-              {(Object.keys(ROLE_LABEL) as Role[]).map((r) => (
-                <button key={r} type="button" onClick={() => f.set('role', r)} className={cn('rounded-xl border p-3 text-left transition-colors', f.values.role === r ? 'border-brand-600 bg-brand-50 ring-2 ring-brand-600/15' : 'border-stone-200 hover:bg-stone-50')}>
-                  <p className="text-[13.5px] font-bold text-ink">{ROLE_LABEL[r]}</p>
-                  <p className="mt-0.5 text-[12px] text-stone-500">{ROLE_DESC[r]}</p>
+              {[...DESIGNATIONS.map((d) => ({ title: d.title as string, role: d.role as Role, description: d.description as string })), { title: CUSTOMER, role: 'customer' as Role, description: ROLE_DESC.customer }].map((d) => (
+                <button
+                  key={d.title}
+                  type="button"
+                  onClick={() => {
+                    f.set('designation', d.title);
+                    f.set('role', d.role);
+                  }}
+                  className={cn('rounded-xl border p-3 text-left transition-colors', f.values.designation === d.title ? 'border-brand-600 bg-brand-50 ring-2 ring-brand-600/15' : 'border-stone-200 hover:bg-stone-50')}
+                >
+                  <p className="flex items-center justify-between gap-2 text-[13.5px] font-bold text-ink">
+                    {d.title}
+                    <Badge tone={ROLE_TONE[d.role]} dot={false}>
+                      {ROLE_LABEL[d.role]}
+                    </Badge>
+                  </p>
+                  <p className="mt-0.5 text-[12px] text-stone-500">{d.description}</p>
                 </button>
               ))}
             </div>
@@ -129,7 +149,6 @@ function UserFormModal({ open, onClose, user, presetRole }: { open: boolean; onC
           </Field>
         )}
         <Field label="Phone">{(id) => <Input id={id} {...f.bind('phone')} />}</Field>
-        <Field label="Job title">{(id) => <Input id={id} placeholder="e.g. Sales Executive" {...f.bind('title')} />}</Field>
         <Field label={editing ? 'New password' : 'Initial password'} required={!editing} error={f.errors.password} hint={editing ? 'Leave blank to keep the current password' : 'Share securely — the user can change it in Settings'} className="sm:col-span-2">
           {(id) => <Input id={id} type="password" autoComplete="new-password" {...f.bind('password')} />}
         </Field>
@@ -242,7 +261,7 @@ function UsersTab() {
             <p className="font-semibold whitespace-nowrap text-ink">
               {u.name} {u.id === me.id && <span className="text-[11.5px] font-medium text-stone-400">(you)</span>}
             </p>
-            <p className="text-[12px] text-stone-400">{u.title ?? u.customer_name}</p>
+            <p className="text-[12px] text-stone-400">{u.role === 'customer' ? u.customer_name : u.title}</p>
           </div>
         </div>
       ),
@@ -253,8 +272,13 @@ function UsersTab() {
       cell: (u) => <span className="whitespace-nowrap">{u.email}</span>,
     },
     {
+      key: 'designation',
+      header: 'Designation',
+      cell: (u) => <span className="whitespace-nowrap text-stone-700">{u.role === 'customer' ? 'Customer' : (u.title ?? '—')}</span>,
+    },
+    {
       key: 'role',
-      header: 'Role',
+      header: 'Access',
       cell: (u) => <Badge tone={ROLE_TONE[u.role]}>{ROLE_LABEL[u.role]}</Badge>,
     },
     {
@@ -382,7 +406,7 @@ function UsersTab() {
                 <Avatar name={u.name} />
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-[14px] font-bold text-ink">{u.name}</p>
-                  <p className="truncate text-[12.5px] text-stone-500">{u.email}</p>
+                  <p className="truncate text-[12.5px] text-stone-500">{u.role === 'customer' ? u.email : [u.title, u.email].filter(Boolean).join(' · ')}</p>
                 </div>
                 <div className="flex flex-col items-end gap-1">
                   <Badge tone={ROLE_TONE[u.role]}>{ROLE_LABEL[u.role]}</Badge>
@@ -401,7 +425,7 @@ function UsersTab() {
         open={!!view}
         onClose={() => setView(null)}
         title={view?.name ?? ''}
-        description={view ? ROLE_LABEL[view.role] : ''}
+        description={view ? [view.role !== 'customer' && view.title, ROLE_LABEL[view.role]].filter(Boolean).join(' · ') : ''}
         size="sm"
         footer={
           <>

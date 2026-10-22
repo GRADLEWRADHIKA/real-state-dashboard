@@ -23,7 +23,30 @@ export function DocIcon({ mime, className }: { mime?: string | null; className?:
   );
 }
 
-export function UploadDocumentModal({ open, onClose, entityType, entityId, defaultType = 'Other', types = DOCUMENT_TYPES as readonly string[] }: { open: boolean; onClose: () => void; entityType: string; entityId: number; defaultType?: string; types?: readonly string[] }) {
+export function UploadDocumentModal({
+  open,
+  onClose,
+  entityType,
+  entityId,
+  defaultType = 'Other',
+  types = DOCUMENT_TYPES as readonly string[],
+  accept = UPLOAD_ACCEPT,
+  title = 'Upload document',
+  description = 'PDF, images, Word, Excel, CSV or text up to 10 MB',
+  success = 'Document uploaded',
+}: {
+  open: boolean;
+  onClose: () => void;
+  entityType: string;
+  entityId: number;
+  defaultType?: string;
+  types?: readonly string[];
+  /** File picker filter, e.g. "image/*" for a photo. */
+  accept?: string;
+  title?: string;
+  description?: string;
+  success?: string;
+}) {
   const [file, setFile] = useState<File | null>(null);
   const [docType, setDocType] = useState(defaultType);
   const [name, setName] = useState('');
@@ -42,7 +65,7 @@ export function UploadDocumentModal({ open, onClose, entityType, entityId, defau
       return api.upload('/documents', fd, { onProgress: setProgress }).finally(() => setProgress(null));
     },
     {
-      success: 'Document uploaded',
+      success,
       onSuccess: () => {
         setFile(null);
         setName('');
@@ -52,6 +75,7 @@ export function UploadDocumentModal({ open, onClose, entityType, entityId, defau
   );
   const pick = (f?: File | null) => {
     if (!f) return;
+    if (accept.startsWith('image/') && !f.type.startsWith('image/')) return toast.error('Choose an image (JPG, PNG or WebP)');
     if (f.size > 10 * 1024 * 1024) return toast.error('File is larger than 10 MB');
     setFile(f);
     if (!name) setName(f.name);
@@ -60,8 +84,8 @@ export function UploadDocumentModal({ open, onClose, entityType, entityId, defau
     <Modal
       open={open}
       onClose={onClose}
-      title="Upload document"
-      description="PDF, images, Word, Excel, CSV or text up to 10 MB"
+      title={title}
+      description={description}
       onSubmit={() => (file ? upload.mutate(undefined) : toast.error('Choose a file to upload'))}
       footer={
         <>
@@ -97,7 +121,7 @@ export function UploadDocumentModal({ open, onClose, entityType, entityId, defau
             <p className="text-[12.5px] text-stone-500">Aadhaar, PAN, agreements, booking forms…</p>
           </>
         )}
-        <input ref={input} type="file" hidden accept={UPLOAD_ACCEPT} onChange={(e) => pick(e.target.files?.[0])} />
+        <input ref={input} type="file" hidden accept={accept} onChange={(e) => pick(e.target.files?.[0])} />
       </div>
       {progress !== null && (
         <div className="mt-3" role="progressbar" aria-label="Upload progress" aria-valuenow={Math.round(progress * 100)} aria-valuemin={0} aria-valuemax={100}>

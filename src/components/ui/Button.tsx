@@ -1,4 +1,4 @@
-import { forwardRef, type ButtonHTMLAttributes, type ReactNode } from 'react';
+import { forwardRef, type AnchorHTMLAttributes, type ButtonHTMLAttributes, type ReactNode } from 'react';
 import { Link, type LinkProps } from 'react-router';
 import { LoaderCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -45,5 +45,15 @@ export function ButtonLink({ variant = 'secondary', size = 'md', icon, className
       {icon}
       {children}
     </Link>
+  );
+}
+
+/** External link styled as a button (e.g. a WhatsApp click-to-chat link). Opens in a new tab. */
+export function ButtonAnchor({ variant = 'secondary', size = 'md', icon, className, children, ...rest }: AnchorHTMLAttributes<HTMLAnchorElement> & { variant?: Variant; size?: Size; icon?: ReactNode }) {
+  return (
+    <a target="_blank" rel="noreferrer" className={cn(base, variants[variant], sizes[size], className)} {...rest}>
+      {icon}
+      {children}
+    </a>
   );
 }

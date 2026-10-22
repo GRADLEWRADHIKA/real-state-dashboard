@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
-import { Check, Copy, KeyRound, ShieldAlert, Shuffle, Target, Webhook } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { Check, Copy, DatabaseBackup, Download, KeyRound, ShieldAlert, Shuffle, Target, Webhook } from 'lucide-react';
 import { toast } from 'sonner';
 import { api, serverUrl } from '@/lib/api';
-import { fmtDateTime } from '@/lib/format';
+import { fileSize, fmtDateTime } from '@/lib/format';
 import { LEAD_SOURCES, cn } from '@/lib/utils';
 import { useAction, useDirectory } from '@/hooks/queries';
 import { Card, CardHeader } from '@/components/ui/Card';
@@ -287,6 +288,79 @@ export function TargetsCard({ targets }: { targets: Settings['targets'] }) {
           </Button>
         </div>
       </form>
+    </Card>
+  );
+}
+
+interface BackupFile {
+  name: string;
+  size: number;
+  created_at: string;
+}
+
+/** Admin only: the automatic daily database backups, a manual backup and downloads. */
+export function BackupsPanel() {
+  const { data, isLoading, error, refetch } = useQuery({
+    queryKey: ['backups'],
+    queryFn: () => api.get<{ data: BackupFile[]; meta: { folder: string } }>('/backups'),
+  });
+  const [downloading, setDownloading] = useState<string | null>(null);
+  const backup = useAction(() => api.post<BackupFile>('/backups'), { success: (b) => `Backup saved: ${b.name}`, invalidate: [['backups']] });
+  const download = async (name: string) => {
+    setDownloading(name);
+    try {
+      await api.download(`/backups/${encodeURIComponent(name)}`, name);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Download failed');
+    } finally {
+      setDownloading(null);
+    }
+  };
+  return (
+    <Card className="overflow-hidden">
+      <CardHeader
+        title="Backups"
+        subtitle="A copy of the database is saved automatically every day; the last 14 are kept."
+        icon={<DatabaseBackup />}
+        action={
+          <Button variant="primary" size="sm" icon={<DatabaseBackup />} loading={backup.isPending} onClick={() => backup.mutate(undefined)}>
+            Back up now
+          </Button>
+        }
+      />
+      <p className="mx-5 mb-4 flex items-start gap-2 rounded-xl bg-amber-50 px-3.5 py-2.5 text-[12.5px] text-amber-900">
+        <ShieldAlert className="mt-0.5 size-4 shrink-0" />
+        Uploaded files are not included — back up the uploads folder too.
+      </p>
+      {error ? (
+        <div className="px-5 pb-5 text-[13px] text-red-600">
+          {error instanceof Error ? error.message : 'Couldn’t load backups'}{' '}
+          <button className="font-semibold underline" onClick={() => refetch()}>
+            Try again
+          </button>
+        </div>
+      ) : isLoading ? (
+        <p className="px-5 pb-5 text-[13px] text-stone-500">Loading backups…</p>
+      ) : !data?.data.length ? (
+        <p className="border-t border-stone-100 px-5 py-4 text-[13px] text-stone-500">No backups yet. The first one is written automatically today, or take one now.</p>
+      ) : (
+        <ul className="divide-y divide-stone-100 border-t border-stone-100">
+          {data.data.map((b) => (
+            <li key={b.name} className="flex items-center justify-between gap-3 px-5 py-3">
+              <div className="min-w-0">
+                <p className="truncate font-mono text-[13px] font-semibold text-ink">{b.name}</p>
+                <p className="text-[12px] text-stone-500">
+                  {fmtDateTime(b.created_at)} · {fileSize(b.size)}
+                </p>
+              </div>
+              <Button size="sm" icon={<Download />} loading={downloading === b.name} onClick={() => download(b.name)}>
+                Download
+              </Button>
+            </li>
+          ))}
+        </ul>
+      )}
+      {data?.meta.folder && <p className="border-t border-stone-100 px-5 py-3 text-[12px] break-all text-stone-400">Saved on the server in {data.meta.folder}</p>}
     </Card>
   );
 }

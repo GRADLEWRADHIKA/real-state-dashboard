@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
-import { BedDouble, Bath, CalendarCheck2, Car, Check, Compass, Layers, MapPin, Pencil, Ruler, Trash2, Upload, Users, KeyRound } from 'lucide-react';
+import { BedDouble, Bath, CalendarCheck2, Car, Check, Compass, History, Layers, MapPin, Pencil, Ruler, Trash2, Upload, Users, KeyRound, LayoutGrid, IndianRupee } from 'lucide-react';
 import { api } from '@/lib/api';
 import { can, useUser } from '@/lib/auth';
 import { fmtDate, fmtTime, inr, inrShort, relativeDay } from '@/lib/format';
@@ -15,7 +15,7 @@ import { useConfirm } from '@/components/ui/Modal';
 import { PropertyFormModal } from '@/components/domain/PropertyForm';
 import { GalleryManager, GalleryViewer } from '@/components/domain/PropertyGallery';
 import { DocumentList, UploadDocumentModal } from '@/components/domain/Documents';
-import type { DocumentItem, Property, SiteVisit } from '@/types';
+import type { DocumentItem, Property, PropertyHistoryEntry, SiteVisit } from '@/types';
 
 type Detail = Property & {
   generating?: boolean;
@@ -45,6 +45,7 @@ type Detail = Property & {
   } | null;
   visits: (SiteVisit & { lead_name: string })[];
   documents: DocumentItem[];
+  history?: PropertyHistoryEntry[];
 };
 
 export default function PropertyDetail() {
@@ -69,13 +70,16 @@ export default function PropertyDetail() {
   });
   if (isLoading) return <PageSkeleton stats={0} />;
   if (error || !p) return <ErrorState error={error} onRetry={refetch} />;
-  const rate = Math.round(p.price / p.area_sqft);
+  const rate = p.rate_per_sqft || Math.round(p.price / p.area_sqft);
+  const history = p.history ?? [];
   const specs = [
+    p.block ? { icon: LayoutGrid, label: 'Block', value: p.block } : null,
     {
       icon: Ruler,
       label: 'Area',
       value: `${p.area_sqft.toLocaleString('en-IN')} sq ft`,
     },
+    p.rate_per_sqft ? { icon: IndianRupee, label: 'Rate per sq ft', value: `₹${p.rate_per_sqft.toLocaleString('en-IN')}` } : null,
     p.bedrooms ? { icon: BedDouble, label: 'Bedrooms', value: `${p.bedrooms} BHK` } : null,
     p.bathrooms ? { icon: Bath, label: 'Bathrooms', value: p.bathrooms } : null,
     p.facing ? { icon: Compass, label: 'Facing', value: p.facing } : null,
@@ -267,10 +271,58 @@ export default function PropertyDetail() {
               <dl className="mt-5 grid grid-cols-2 gap-4 border-t border-stone-100 pt-4">
                 <InfoRow label="Property code">{p.code}</InfoRow>
                 <InfoRow label="Type">{p.type}</InfoRow>
-                <InfoRow label="Phase / block">{p.tower}</InfoRow>
+                <InfoRow label="Block">{p.block}</InfoRow>
+                <InfoRow label="Phase / tower">{p.tower}</InfoRow>
+                <InfoRow label="Rate per sq ft">{p.rate_per_sqft ? `₹${p.rate_per_sqft.toLocaleString('en-IN')}` : null}</InfoRow>
                 <InfoRow label="Salesperson">{p.agent_name}</InfoRow>
               </dl>
             </div>
+          </Card>
+
+          <Card className="overflow-hidden">
+            <CardHeader title="Plot history" subtitle="Everyone who has booked this unit, newest first" icon={<History />} />
+            {history.length ? (
+              <ol className="px-5 pb-4">
+                {history.map((h, i) => {
+                  const body = (
+                    <>
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="truncate text-[13.5px] font-semibold text-ink">{h.customer_name}</p>
+                          <p className="text-[12px] text-stone-500">
+                            {[h.customer_code, `Booked ${fmtDate(h.booking_date)}`, inrShort(h.total_value)].filter(Boolean).join(' · ')}
+                          </p>
+                        </div>
+                        <StatusBadge status={h.status} />
+                      </div>
+                      <p className="mt-1 text-[12px] text-stone-500">
+                        {h.agent_name ? `Sold by ${h.agent_name}` : 'No salesperson'}
+                        {h.status !== 'Cancelled' && h.registry_status && ` · Registry ${h.registry_status === 'Date fixed' && h.registry_date ? `on ${fmtDate(h.registry_date)}` : h.registry_status.toLowerCase()}`}
+                      </p>
+                      {h.status === 'Cancelled' && (
+                        <p className="mt-1 text-[12px] text-red-700">
+                          Cancelled{h.cancelled_at ? ` ${fmtDate(h.cancelled_at)}` : ''}
+                          {h.cancel_reason ? ` — ${h.cancel_reason}` : ''}
+                        </p>
+                      )}
+                    </>
+                  );
+                  return (
+                    <li key={`${h.customer_id}-${i}`} className="border-t border-stone-100 py-2.5 first:border-0">
+                      {h.customer_code ? (
+                        <Link to={`/customers/${h.customer_id}`} className="-mx-2 block rounded-lg px-2 py-1 hover:bg-stone-50">
+                          {body}
+                        </Link>
+                      ) : (
+                        <div className="py-1">{body}</div>
+                      )}
+                    </li>
+                  );
+                })}
+              </ol>
+            ) : (
+              <EmptyState compact icon={<History />} title="No bookings yet" message="When this unit is booked, the buyer appears here." />
+            )}
           </Card>
 
           <Card>

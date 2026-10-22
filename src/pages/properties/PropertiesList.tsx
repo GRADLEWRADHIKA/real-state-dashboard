@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
-import { BedDouble, Building2, Compass, LayoutGrid, List, Plus, Ruler, Users } from 'lucide-react';
+import { BedDouble, Building2, Compass, LayoutGrid, List, Map as MapIcon, Plus, Ruler, Users } from 'lucide-react';
 import { api } from '@/lib/api';
 import { can, useUser } from '@/lib/auth';
 import { inrShort } from '@/lib/format';
@@ -17,6 +17,7 @@ import { EmptyState, ErrorState, Skeleton } from '@/components/ui/Feedback';
 import { PropertyArt } from '@/components/domain/PropertyArt';
 import { PropertyCover } from '@/components/domain/PropertyGallery';
 import { PropertyFormModal } from '@/components/domain/PropertyForm';
+import { PlotMap } from '@/components/domain/PlotMap';
 import type { Paged, Property } from '@/types';
 
 type PropertiesResponse = Paged<
@@ -26,13 +27,17 @@ type PropertiesResponse = Paged<
     projects: {
       project: string;
       location: string;
+      type: string;
       units: number;
       available: number;
       min_price: number;
       max_price: number;
     }[];
+    blocks?: string[];
   }
 >;
+
+type View = 'grid' | 'list' | 'map';
 
 const PRICE = [
   { value: '0-3000000', label: 'Under ₹30 L' },
@@ -45,9 +50,9 @@ export default function PropertiesList() {
   const user = useUser();
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
-  const [view, setView] = useState<'grid' | 'list'>(() => {
+  const [view, setView] = useState<View>(() => {
     try {
-      return (localStorage.getItem('ef_prop_view') as 'grid' | 'list') || 'grid';
+      return (localStorage.getItem('ef_prop_view') as View) || 'grid';
     } catch {
       return 'grid';
     }
@@ -67,6 +72,7 @@ export default function PropertiesList() {
     type: get('type'),
     status: get('status'),
     project: get('project'),
+    block: get('block'),
     price_min: pmin || undefined,
     price_max: pmax || undefined,
   };
@@ -76,7 +82,7 @@ export default function PropertiesList() {
     placeholderData: keepPreviousData,
   });
   const summary = Object.fromEntries((data?.meta.summary ?? []).map((s) => [s.status, s]));
-  const changeView = (v: 'grid' | 'list') => {
+  const changeView = (v: View) => {
     setView(v);
     try {
       localStorage.setItem('ef_prop_view', v);
@@ -147,7 +153,7 @@ export default function PropertiesList() {
     <div>
       <PageHeader
         title="Properties"
-        subtitle="Starwiz Green Valley inventory — plots, villas, apartments and commercial units"
+        subtitle="Inventory across every project — plots, villas, apartments and commercial units"
         crumbs={[{ label: 'Home', to: '/' }, { label: 'Properties' }]}
         actions={
           <>
@@ -164,6 +170,11 @@ export default function PropertiesList() {
                   value: 'list',
                   label: <span className="sr-only sm:not-sr-only">List</span>,
                   icon: <List />,
+                },
+                {
+                  value: 'map',
+                  label: <span className="sr-only sm:not-sr-only">Map</span>,
+                  icon: <MapIcon />,
                 },
               ]}
             />
@@ -197,7 +208,7 @@ export default function PropertiesList() {
               onClick={() => setParam('project', get('project') === p.project ? '' : p.project)}
               className={cn('card flex min-w-[240px] flex-1 items-center gap-3 p-3 text-left transition-shadow hover:shadow-pop', get('project') === p.project && 'ring-2 ring-brand-600/40')}
             >
-              <PropertyArt type={p.project.includes('Plots') ? 'Plot' : p.project.includes('Villas') ? 'Villa' : p.project.includes('Residency') ? 'Apartment' : 'Shop'} project={p.project} className="size-14 shrink-0 rounded-xl" />
+              <PropertyArt type={p.type} project={p.project} className="size-14 shrink-0 rounded-xl" />
               <div className="min-w-0">
                 <p className="truncate text-[13.5px] font-bold text-ink">{p.project}</p>
                 <p className="text-[12px] text-stone-500">
@@ -217,14 +228,19 @@ export default function PropertiesList() {
         <div className="grid grid-cols-2 gap-2 sm:flex">
           <FilterSelect value={get('type')} onChange={(v) => setParam('type', v)} placeholder="All types" options={[...PROPERTY_TYPES]} />
           <FilterSelect value={get('status')} onChange={(v) => setParam('status', v)} placeholder="Any status" options={[...PROPERTY_STATUSES]} />
-          <FilterSelect value={get('price')} onChange={(v) => setParam('price', v)} placeholder="Any price" options={PRICE} />
+          {(!!data?.meta.blocks?.length || !!get('block')) && <FilterSelect value={get('block')} onChange={(v) => setParam('block', v)} placeholder="All blocks" options={(data?.meta.blocks ?? [get('block')]).map((b) => ({ value: b, label: `Block ${b}` }))} />}
+          {view !== 'map' && <FilterSelect value={get('price')} onChange={(v) => setParam('price', v)} placeholder="Any price" options={PRICE} />}
         </div>
-        <p className="text-[13px] text-stone-500 sm:ml-auto">
-          <b className="text-ink">{data?.meta.total ?? 0}</b> units
-        </p>
+        {view !== 'map' && (
+          <p className="text-[13px] text-stone-500 sm:ml-auto">
+            <b className="text-ink">{data?.meta.total ?? 0}</b> units
+          </p>
+        )}
       </div>
 
-      {error ? (
+      {view === 'map' ? (
+        <PlotMap filters={{ q: dq, type: get('type'), status: get('status'), project: get('project'), block: get('block') }} />
+      ) : error ? (
         <ErrorState error={error} onRetry={refetch} />
       ) : isLoading ? (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">

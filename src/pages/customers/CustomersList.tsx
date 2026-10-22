@@ -6,18 +6,26 @@ import { toast } from 'sonner';
 import { api } from '@/lib/api';
 import { fmtDate, inrShort, relativeDay, todayStr } from '@/lib/format';
 import { cn, downloadCsv } from '@/lib/utils';
-import { useDebounce } from '@/hooks/queries';
+import { useDebounce, useProjects } from '@/hooks/queries';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { FilterSelect, SearchInput } from '@/components/ui/Form';
-import { Badge, StatusBadge } from '@/components/ui/Badge';
+import { Badge, RegistryBadge, StatusBadge } from '@/components/ui/Badge';
 import { Avatar, PageHeader, Progress } from '@/components/ui/Misc';
 import { DataTable, Pagination, type Column } from '@/components/ui/Table';
 import { EmptyState, ErrorState } from '@/components/ui/Feedback';
 import { StatCard } from '@/components/charts/Charts';
 import { ConvertLeadModal } from '@/components/domain/FinanceForms';
 import { useUser } from '@/lib/auth';
-import type { Customer, Paged } from '@/types';
+import type { Broker, Customer, Paged } from '@/types';
+
+const REGISTRY_FILTER = [
+  { value: 'pending', label: 'Registry pending' },
+  { value: 'due15', label: 'Registry in 15 days' },
+  { value: 'Not done', label: 'Registry not done' },
+  { value: 'Date fixed', label: 'Registry date fixed' },
+  { value: 'Done', label: 'Registry done' },
+];
 
 type Resp = Paged<
   Customer,
@@ -39,6 +47,12 @@ export default function CustomersList() {
   const [booking, setBooking] = useState(false);
   const [q, setQ] = useState('');
   const dq = useDebounce(q);
+  const projects = useProjects().data ?? [];
+  const brokers = useQuery({
+    queryKey: ['brokers', 'filter'],
+    queryFn: () => api.get<{ data: Broker[] }>('/brokers', { limit: 100 }).then((r) => r.data),
+    staleTime: 5 * 60_000,
+  }).data;
   const get = (k: string) => params.get(k) ?? '';
   const setParam = (k: string, v: string) => {
     const next = new URLSearchParams(params);
@@ -52,6 +66,8 @@ export default function CustomersList() {
     status: get('status'),
     payment: get('payment'),
     project: get('project'),
+    registry: get('registry'),
+    broker: get('broker'),
     sort: get('sort') || 'booking_date',
     order: get('order') || 'desc',
     page: Number(get('page') || 1),
@@ -145,6 +161,11 @@ export default function CustomersList() {
           </div>
         ),
       },
+      {
+        key: 'registry',
+        header: 'Registry',
+        cell: (c) => (c.status === 'Cancelled' ? <span className="text-stone-400">—</span> : <RegistryBadge status={c.registry_status} date={c.registry_date} />),
+      },
     ],
     [],
   );
@@ -171,6 +192,9 @@ export default function CustomersList() {
       { key: 'outstanding', label: 'Outstanding' },
       { key: 'overdue', label: 'Overdue' },
       { key: 'status', label: 'Status' },
+      { key: 'registry_status', label: 'Registry' },
+      { key: 'registry_date', label: 'Registry Date' },
+      { key: 'broker_name', label: 'Broker' },
     ]);
     toast.success(`Exported ${all.data.length} customers`);
   };
@@ -215,7 +239,16 @@ export default function CustomersList() {
                 { value: 'clear', label: 'No overdue' },
               ]}
             />
-            <FilterSelect value={get('project')} onChange={(v) => setParam('project', v)} placeholder="All projects" options={['Green Valley Plots', 'Green Valley Villas', 'Green Valley Residency', 'Green Valley Commercial']} />
+            <FilterSelect value={get('project')} onChange={(v) => setParam('project', v)} placeholder="All projects" options={projects} />
+            <FilterSelect value={get('registry')} onChange={(v) => setParam('registry', v)} placeholder="Any registry" options={REGISTRY_FILTER} />
+            {(!!brokers?.length || !!get('broker')) && (
+              <FilterSelect
+                value={get('broker')}
+                onChange={(v) => setParam('broker', v)}
+                placeholder="Any broker"
+                options={brokers?.length ? brokers.map((b) => ({ value: String(b.id), label: b.name })) : [{ value: get('broker'), label: 'Selected broker' }]}
+              />
+            )}
           </div>
         </div>
         {error ? (
@@ -252,7 +285,10 @@ export default function CustomersList() {
                   <span className={cn('font-bold', c.overdue > 0 ? 'text-red-600' : 'text-ink')}>{c.overdue > 0 ? `${inrShort(c.overdue)} overdue` : `${inrShort(c.outstanding)} due`}</span>
                 </div>
                 <Progress value={(c.paid / c.total_value) * 100} size="sm" className="mt-1.5" />
-                {c.next_due_date && <p className="mt-1.5 text-[12px] text-stone-400">Next due {relativeDay(c.next_due_date).toLowerCase()}</p>}
+                <div className="mt-1.5 flex items-center justify-between gap-2">
+                  <p className="text-[12px] text-stone-400">{c.next_due_date ? `Next due ${relativeDay(c.next_due_date).toLowerCase()}` : ''}</p>
+                  {c.status !== 'Cancelled' && <RegistryBadge status={c.registry_status} date={c.registry_date} />}
+                </div>
               </div>
             )}
             empty={<EmptyState icon={<UserRound />} title="No customers found" message="Customers appear here once a lead is converted with a booking." />}

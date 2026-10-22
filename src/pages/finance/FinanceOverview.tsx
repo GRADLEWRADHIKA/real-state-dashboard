@@ -4,7 +4,8 @@ import { useQuery } from '@tanstack/react-query';
 import { AlertTriangle, ArrowRight, CalendarClock, Clock, IndianRupee, Landmark, Phone, Receipt, TrendingUp, Wallet } from 'lucide-react';
 import { api } from '@/lib/api';
 import { fmtDate, inr, inrShort, relativeDay } from '@/lib/format';
-import { SERIES, cn, telHref } from '@/lib/utils';
+import { SERIES, cn, telHref, waHref } from '@/lib/utils';
+import { installmentReminder, useCompanyName } from '@/lib/whatsapp';
 import { Card, CardHeader } from '@/components/ui/Card';
 import { Button, ButtonLink } from '@/components/ui/Button';
 import { StatusBadge } from '@/components/ui/Badge';
@@ -12,6 +13,7 @@ import { PageHeader } from '@/components/ui/Misc';
 import { EmptyState, ErrorState, PageSkeleton } from '@/components/ui/Feedback';
 import { Donut, MonthlyBars, StatCard } from '@/components/charts/Charts';
 import { RecordPaymentModal } from '@/components/domain/FinanceForms';
+import { WhatsAppRemind } from '@/components/domain/FinanceViews';
 import type { Installment, Transaction } from '@/types';
 
 interface Summary {
@@ -34,6 +36,7 @@ interface Summary {
 }
 
 function DueList({ rows, onPay, overdue }: { rows: Installment[]; onPay: (i: Installment) => void; overdue?: boolean }) {
+  const company = useCompanyName();
   if (!rows.length) return <EmptyState compact icon={<CalendarClock />} title={overdue ? 'No overdue installments' : 'Nothing due in the next 45 days'} />;
   return (
     <ul className="divide-y divide-stone-100">
@@ -56,6 +59,9 @@ function DueList({ rows, onPay, overdue }: { rows: Installment[]; onPay: (i: Ins
             <a href={telHref(i.customer_phone)} aria-label={`Call ${i.customer_name}`} className="flex size-8 items-center justify-center rounded-lg text-stone-400 hover:bg-stone-100 hover:text-ink">
               <Phone className="size-4" />
             </a>
+          )}
+          {overdue && i.customer_phone && (
+            <WhatsAppRemind compact href={waHref(i.customer_phone, installmentReminder({ name: i.customer_name ?? '', label: i.label, balance: i.balance, due_date: i.due_date, company }))} />
           )}
           <Button size="sm" variant={overdue ? 'primary' : 'secondary'} onClick={() => onPay(i)} className="shrink-0">
             Collect

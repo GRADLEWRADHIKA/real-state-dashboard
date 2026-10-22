@@ -1,4 +1,4 @@
-import { BarChart3, Building2, CalendarCheck2, FileText, Handshake, LayoutDashboard, ListChecks, PhoneCall, Receipt, Settings, SquareKanban, UserCog, UserRound, Users, Wallet, CalendarClock, Inbox, ScrollText, type LucideIcon } from 'lucide-react';
+import { BadgeIndianRupee, BarChart3, IdCard, ReceiptIndianRupee, Building2, CalendarCheck2, FileText, Handshake, LayoutDashboard, ListChecks, PhoneCall, Receipt, Settings, SquareKanban, UserCog, UserRound, Users, Wallet, CalendarClock, Inbox, ScrollText, type LucideIcon } from 'lucide-react';
 import type { Role } from '@/types';
 
 export interface NavItem {
@@ -12,6 +12,7 @@ export interface NavItem {
 const ALL: Role[] = ['admin', 'manager', 'sales', 'accounts'];
 const SALES: Role[] = ['admin', 'manager', 'sales'];
 const FIN: Role[] = ['admin', 'accounts'];
+const OFFICE: Role[] = ['admin', 'manager', 'accounts'];
 
 export const NAV: { title: string; items: NavItem[] }[] = [
   {
@@ -47,6 +48,7 @@ export const NAV: { title: string; items: NavItem[] }[] = [
       { to: '/followups', label: 'Follow-ups', icon: PhoneCall, roles: SALES },
       { to: '/customers', label: 'Customers', icon: UserRound, roles: ALL },
       { to: '/deals', label: 'Deals', icon: Handshake, roles: SALES },
+      { to: '/brokers', label: 'Brokers', icon: BadgeIndianRupee, roles: OFFICE },
       { to: '/requests', label: 'Customer requests', icon: Inbox, roles: ALL },
     ],
   },
@@ -76,6 +78,7 @@ export const NAV: { title: string; items: NavItem[] }[] = [
         icon: CalendarClock,
         roles: FIN,
       },
+      { to: '/expenses', label: 'Expenses', icon: ReceiptIndianRupee, roles: FIN },
     ],
   },
   {
@@ -94,6 +97,7 @@ export const NAV: { title: string; items: NavItem[] }[] = [
   {
     title: 'Administration',
     items: [
+      { to: '/staff', label: 'Staff', icon: IdCard, roles: OFFICE },
       { to: '/users', label: 'Users & roles', icon: UserCog, roles: ['admin'] },
       {
         to: '/users?tab=resets',

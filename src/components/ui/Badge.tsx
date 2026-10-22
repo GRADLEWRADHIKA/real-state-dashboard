@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { Flame, Snowflake, Sun } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { fmtDateShort } from '@/lib/format';
 
 export type Tone = 'gray' | 'blue' | 'indigo' | 'violet' | 'amber' | 'orange' | 'green' | 'brand' | 'red' | 'gold';
 
@@ -130,3 +131,15 @@ const TASK_TONE: Record<string, Tone> = {
   Urgent: 'red',
 };
 export const TaskPriorityBadge = ({ priority }: { priority: string }) => <Badge tone={TASK_TONE[priority] ?? 'gray'}>{priority}</Badge>;
+
+const REGISTRY_TONE: Record<string, Tone> = {
+  'Not done': 'gray',
+  'Date fixed': 'amber',
+  Done: 'green',
+};
+/** Registry status of a booking; "Date fixed" can show the date. */
+export const RegistryBadge = ({ status, date, className }: { status?: string | null; date?: string | null; className?: string }) => (
+  <Badge tone={REGISTRY_TONE[status ?? 'Not done'] ?? 'gray'} className={className}>
+    {status === 'Date fixed' && date ? `Registry ${fmtDateShort(date)}` : status === 'Done' ? 'Registry done' : status === 'Date fixed' ? 'Date fixed' : 'Registry pending'}
+  </Badge>
+);

@@ -68,6 +68,10 @@ export const api = {
     const { blob, fileName } = await client.api.download(path, fallbackName, query);
     saveBlob(blob, fileName);
   },
+  /** Fetches a protected file (e.g. a customer photo) as a Blob, for an object URL. */
+  async blob(path: string, query?: Query) {
+    return (await client.api.download(path, 'file', query)).blob;
+  },
   /** Opens a protected PDF/image in a new tab (e.g. a receipt preview). */
   async open(path: string, fallbackName: string) {
     const win = window.open('', '_blank');

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router';
-import { Bell, Building, Check, CreditCard, KeyRound, ListOrdered, Lock, Shapes, UserCog, UserRound, Webhook, X, Minus } from 'lucide-react';
+import { Bell, Building, Check, CreditCard, DatabaseBackup, KeyRound, ListOrdered, Lock, Shapes, UserCog, UserRound, Webhook, X, Minus } from 'lucide-react';
 import { api, auth } from '@/lib/api';
 import { useAuth, useUser } from '@/lib/auth';
 import { LEAD_STATUSES, ROLE_LABEL, cn } from '@/lib/utils';
@@ -13,10 +13,10 @@ import { StatusBadge } from '@/components/ui/Badge';
 import { PageHeader } from '@/components/ui/Misc';
 import { PageSkeleton } from '@/components/ui/Feedback';
 import { PoweredBy } from '@/components/layout/Brand';
-import { AssignmentPanel, LeadCapturePanel, SecurityPolicyCard, TargetsCard, Toggle } from '@/components/domain/SettingsPanels';
+import { AssignmentPanel, BackupsPanel, LeadCapturePanel, SecurityPolicyCard, TargetsCard, Toggle } from '@/components/domain/SettingsPanels';
 import type { User } from '@/types';
 
-type Section = 'profile' | 'company' | 'roles' | 'leads' | 'statuses' | 'types' | 'payments' | 'notifications' | 'security';
+type Section = 'profile' | 'company' | 'roles' | 'leads' | 'statuses' | 'types' | 'payments' | 'notifications' | 'security' | 'backups';
 
 const SECTIONS: {
   key: Section;
@@ -33,6 +33,7 @@ const SECTIONS: {
   { key: 'payments', label: 'Payment methods', icon: CreditCard },
   { key: 'notifications', label: 'Notifications', icon: Bell },
   { key: 'security', label: 'Security', icon: Lock },
+  { key: 'backups', label: 'Backups', icon: DatabaseBackup, admin: true },
 ];
 
 const MATRIX: {
@@ -381,6 +382,7 @@ export default function Settings() {
               </Card>
             </div>
           )}
+          {section === 'backups' && isAdmin && <BackupsPanel />}
           <div className="mt-6 text-center lg:text-left">
             <PoweredBy />
           </div>

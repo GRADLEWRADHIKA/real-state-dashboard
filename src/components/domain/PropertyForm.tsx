@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { X } from 'lucide-react';
 import { api } from '@/lib/api';
 import { PROPERTY_STATUSES, PROPERTY_TYPES } from '@/lib/utils';
-import { useAction, useAgents } from '@/hooks/queries';
+import { useAction, useAgents, useProjects } from '@/hooks/queries';
 import { required, useForm } from '@/hooks/useForm';
 import { Button } from '@/components/ui/Button';
 import { Checkbox, Field, Input, MoneyInput, Select, Textarea } from '@/components/ui/Form';
@@ -13,17 +13,20 @@ const SUGGESTED = ['Gated entry with security', 'Clubhouse', 'Swimming pool', 'G
 
 export function PropertyFormModal({ open, onClose, property, onSaved }: { open: boolean; onClose: () => void; property?: Property | null; onSaved?: (p: Property) => void }) {
   const agents = useAgents();
+  const projects = useProjects().data ?? [];
   const editing = !!property;
   const [amenity, setAmenity] = useState('');
   const f = useForm(
     {
       name: property?.name ?? '',
-      project: property?.project ?? 'Green Valley Plots',
-      location: property?.location ?? 'Nigohan–Samesi Road, Mohanlalganj',
+      project: property?.project ?? '',
+      location: property?.location ?? '',
       city: property?.city ?? 'Lucknow',
       type: property?.type ?? 'Plot',
       unit_number: property?.unit_number ?? '',
       tower: property?.tower ?? '',
+      block: property?.block ?? '',
+      rate_per_sqft: (property?.rate_per_sqft ?? '') as number | '',
       floor: (property?.floor ?? '') as number | string,
       bedrooms: (property?.bedrooms ?? '') as number | string,
       bathrooms: (property?.bathrooms ?? '') as number | string,
@@ -66,6 +69,8 @@ export function PropertyFormModal({ open, onClose, property, onSaved }: { open: 
         parking: n(v.parking),
         area_sqft: Number(v.area_sqft),
         price: Number(v.price),
+        block: v.block.trim() || null,
+        rate_per_sqft: v.rate_per_sqft === '' ? null : Number(v.rate_per_sqft),
         assigned_to: v.assigned_to ? Number(v.assigned_to) : null,
         slug: v.slug.trim() || null,
         generate_images: editing ? undefined : v.generate_images,
@@ -81,6 +86,13 @@ export function PropertyFormModal({ open, onClose, property, onSaved }: { open: 
     },
   );
   const residential = ['Apartment', 'Villa'].includes(f.values.type);
+  /** Price follows rate × area whenever both are filled; it stays editable afterwards. */
+  const setSize = (key: 'area_sqft' | 'rate_per_sqft', value: number | string) => {
+    f.set(key, value as never);
+    const area = Number(key === 'area_sqft' ? value : f.values.area_sqft);
+    const rate = Number(key === 'rate_per_sqft' ? value : f.values.rate_per_sqft);
+    if (area > 0 && rate > 0) f.set('price', Math.round(area * rate));
+  };
   const addAmenity = (a: string) => {
     const t = a.trim();
     if (t && !f.values.amenities.includes(t)) f.set('amenities', [...f.values.amenities, t]);
@@ -110,7 +122,7 @@ export function PropertyFormModal({ open, onClose, property, onSaved }: { open: 
           {(id) => <Input id={id} list="projects" {...f.bind('project')} />}
         </Field>
         <datalist id="projects">
-          {['Green Valley Plots', 'Green Valley Villas', 'Green Valley Residency', 'Green Valley Commercial'].map((p) => (
+          {projects.map((p) => (
             <option key={p} value={p} />
           ))}
         </datalist>
@@ -126,9 +138,15 @@ export function PropertyFormModal({ open, onClose, property, onSaved }: { open: 
         <Field label="Unit / plot number" required error={f.errors.unit_number}>
           {(id) => <Input id={id} placeholder="e.g. B-15" {...f.bind('unit_number')} />}
         </Field>
-        <Field label="Phase / tower / block">{(id) => <Input id={id} placeholder="e.g. Phase 1 · Block B" {...f.bind('tower')} />}</Field>
+        <Field label="Block" hint="Groups plots on the plot map, e.g. A, B, C" error={f.errors.block}>
+          {(id) => <Input id={id} placeholder="e.g. A" maxLength={30} {...f.bind('block')} />}
+        </Field>
+        <Field label="Phase / tower">{(id) => <Input id={id} placeholder="e.g. Phase 1" {...f.bind('tower')} />}</Field>
         <Field label="Area (sq ft)" required error={f.errors.area_sqft}>
-          {(id) => <Input id={id} type="number" inputMode="numeric" min={50} {...f.bind('area_sqft')} />}
+          {(id) => <Input id={id} type="number" inputMode="numeric" min={50} value={f.values.area_sqft} onChange={(e) => setSize('area_sqft', e.target.value)} aria-invalid={!!f.errors.area_sqft} />}
+        </Field>
+        <Field label="Rate per sq ft (₹)" hint="Price is worked out as rate × area" error={f.errors.rate_per_sqft}>
+          {(id) => <MoneyInput id={id} value={f.values.rate_per_sqft} onChange={(v) => setSize('rate_per_sqft', v)} aria-invalid={!!f.errors.rate_per_sqft} />}
         </Field>
         <Field label="Price" required error={f.errors.price}>
           {(id) => <MoneyInput id={id} value={f.values.price} onChange={(v) => f.set('price', v)} />}

@@ -1,11 +1,13 @@
 import { useNavigate, useParams } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowLeft, BadgeCheck, Download, Printer } from 'lucide-react';
+import { ArrowLeft, BadgeCheck, Download, MessageCircle, Printer } from 'lucide-react';
 import { toast } from 'sonner';
 import { api } from '@/lib/api';
 import { fmtDate, inr } from '@/lib/format';
 import { amountInWords, type ReceiptData } from '@estateflow/shared';
-import { Button } from '@/components/ui/Button';
+import { Button, ButtonAnchor } from '@/components/ui/Button';
+import { waHref } from '@/lib/utils';
+import { receiptMessage } from '@/lib/whatsapp';
 import { StatusBadge } from '@/components/ui/Badge';
 import { ErrorState, Skeleton } from '@/components/ui/Feedback';
 import logo from '@/assets/starwiz-logo-512.png';
@@ -31,7 +33,29 @@ export function ReceiptView({ id, backLabel = 'Back' }: { id: string; backLabel?
         <Button variant="ghost" icon={<ArrowLeft />} onClick={() => navigate(-1)}>
           {backLabel}
         </Button>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
+          {r.status === 'Completed' && r.customer.phone && (
+            <ButtonAnchor
+              icon={<MessageCircle />}
+              className="text-emerald-700"
+              href={waHref(
+                r.customer.phone,
+                receiptMessage({
+                  name: r.customer.name,
+                  receipt: r.receipt_number ?? r.code,
+                  amount: r.amount,
+                  words: amountInWords(r.amount),
+                  date: r.payment_date,
+                  method: r.method,
+                  project: r.property_project,
+                  unit: r.property_unit,
+                  company: c.name,
+                }),
+              )}
+            >
+              Send on WhatsApp
+            </ButtonAnchor>
+          )}
           <Button icon={<Printer />} onClick={() => window.print()}>
             Print
           </Button>
@@ -97,7 +121,7 @@ export function ReceiptView({ id, backLabel = 'Back' }: { id: string; backLabel?
                 {r.property_project} · {r.property_unit}
               </p>
               <p className="mt-1 text-[13px] text-stone-600">{r.property_name}</p>
-              <p className="text-[13px] text-stone-600">Starwiz Green Valley, Nigohan–Samesi Road, Mohanlalganj, Lucknow</p>
+              {(r.property_location || r.property_city) && <p className="text-[13px] text-stone-600">{[r.property_location, r.property_city].filter(Boolean).join(', ')}</p>}
               <p className="mt-1 text-[12.5px] text-stone-500">Customer ID {r.customer.code}</p>
             </div>
           </div>

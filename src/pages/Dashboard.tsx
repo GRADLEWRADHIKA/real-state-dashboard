@@ -1,19 +1,19 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowRight, Building2, CalendarCheck2, Clock, Flame, Handshake, IndianRupee, MapPin, Phone, PhoneCall, Plus, Sparkles, Trophy, UserCog, UserPlus, Users, Wallet } from 'lucide-react';
+import { ArrowRight, Building2, CalendarCheck2, Clock, Flame, Handshake, IndianRupee, Landmark, LayoutGrid, MapPin, Phone, PhoneCall, Plus, Sparkles, Trophy, UserCheck, UserCog, UserPlus, Users, Wallet } from 'lucide-react';
 import { api } from '@/lib/api';
-import { useUser } from '@/lib/auth';
+import { can, useUser } from '@/lib/auth';
 import { firstName, fmtDate, fmtDateTime, fmtTime, greeting, inr, inrShort, relativeDay, timeAgo } from '@/lib/format';
 import { LEAD_SOURCES, SERIES, STATUS_COLORS, cn, telHref } from '@/lib/utils';
 import { Card, CardHeader } from '@/components/ui/Card';
 import { ButtonLink } from '@/components/ui/Button';
 import { StatusBadge } from '@/components/ui/Badge';
 import { Avatar, Segmented, Tabs } from '@/components/ui/Misc';
-import { EmptyState, ErrorState, PageSkeleton } from '@/components/ui/Feedback';
+import { EmptyState, ErrorState, PageSkeleton, Skeleton } from '@/components/ui/Feedback';
 import { Donut, MonthlyBars, SegmentMeter, StageBars, StatCard } from '@/components/charts/Charts';
 import { ActivityIcon } from '@/components/domain/Timeline';
-import type { Activity, Followup, SiteVisit } from '@/types';
+import type { Activity, Followup, Overview, SiteVisit } from '@/types';
 
 interface Kpi {
   value: number;
@@ -94,6 +94,94 @@ function FollowupList({ items, empty }: { items: Followup[]; empty: string }) {
   );
 }
 
+/** "At a glance" strip: plots, today's collection, pending money, registry and staff attendance. */
+function AtAGlance() {
+  const user = useUser();
+  const navigate = useNavigate();
+  const { data: o, isLoading } = useQuery({
+    queryKey: ['dashboard', 'overview'],
+    queryFn: () => api.get<Overview>('/dashboard/overview'),
+    refetchInterval: 60_000,
+  });
+  const finance = can.finance(user.role);
+  const cols = o?.attendance ? 'xl:grid-cols-5' : 'xl:grid-cols-4';
+  if (isLoading)
+    return (
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 xl:grid-cols-5">
+        {Array.from({ length: 5 }).map((_, i) => (
+          <Skeleton key={i} className="h-[118px] rounded-[14px]" />
+        ))}
+      </div>
+    );
+  if (!o) return null;
+  const p = o.plots;
+  const a = o.attendance;
+  return (
+    <section aria-labelledby="glance">
+      <h2 id="glance" className="label-xs mb-2.5">
+        At a glance
+      </h2>
+      <div className={cn('grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3', cols)}>
+        <StatCard
+          label="Plots sold / available"
+          value={
+            <span>
+              {p.sold + p.booked} <span className="text-stone-400">/</span> <span className="text-brand-800">{p.available}</span>
+            </span>
+          }
+          icon={<LayoutGrid />}
+          caption={
+            <span>
+              {p.sold} sold · {p.booked} booked · <b className="font-semibold text-amber-700">{p.hold} on hold</b> · {p.total} total
+            </span>
+          }
+          onClick={() => navigate('/properties')}
+        />
+        <StatCard
+          label="Today’s collection"
+          value={inrShort(o.today_collection)}
+          icon={<IndianRupee />}
+          caption={`${o.today_count} payment${o.today_count === 1 ? '' : 's'} today`}
+          onClick={finance ? () => navigate('/finance/transactions?period=0') : undefined}
+        />
+        <StatCard
+          label="Total pending"
+          value={inrShort(o.total_pending)}
+          icon={<Wallet />}
+          accent="gold"
+          caption={
+            <span>
+              <b className="font-bold text-red-600">{inrShort(o.overdue)}</b> overdue
+            </span>
+          }
+          onClick={finance ? () => navigate('/finance/installments?range=overdue') : undefined}
+        />
+        <StatCard
+          label="Registry pending"
+          value={o.registry_pending}
+          icon={<Landmark />}
+          accent={o.registry_due_15 > 0 ? 'red' : undefined}
+          caption={o.registry_due_15 > 0 ? <b className="font-semibold text-amber-700">{o.registry_due_15} in next 15 days</b> : 'None in next 15 days'}
+          onClick={() => navigate(o.registry_due_15 > 0 ? '/customers?registry=due15' : '/customers?registry=pending')}
+        />
+        {a && (
+          <StatCard
+            label="Staff attendance"
+            value={
+              <span>
+                {a.present} <span className="text-[16px] font-bold text-stone-400">of {a.staff}</span>
+              </span>
+            }
+            icon={<UserCheck />}
+            caption={[a.half_day && `${a.half_day} half day`, a.leave && `${a.leave} leave`, a.absent && `${a.absent} absent`, a.not_marked && `${a.not_marked} not marked`].filter(Boolean).join(' · ') || 'Everyone present'}
+            onClick={() => navigate('/staff?tab=attendance')}
+          />
+        )}
+      </div>
+    </section>
+  );
+}
+
 export default function Dashboard() {
   const user = useUser();
   const navigate = useNavigate();
@@ -144,6 +232,8 @@ export default function Dashboard() {
           </ButtonLink>
         </div>
       </div>
+
+      <AtAGlance />
 
       {k.total_leads.value === 0 && user.role !== 'sales' && (
         <Card className="overflow-hidden border-brand-200">

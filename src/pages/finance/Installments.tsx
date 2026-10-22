@@ -5,6 +5,8 @@ import { CalendarClock } from 'lucide-react';
 import { api } from '@/lib/api';
 import { inr } from '@/lib/format';
 import { useDebounce } from '@/hooks/queries';
+import { waHref } from '@/lib/utils';
+import { installmentReminder, useCompanyName } from '@/lib/whatsapp';
 import { Card } from '@/components/ui/Card';
 import { Pagination } from '@/components/ui/Table';
 import { FilterSelect, SearchInput } from '@/components/ui/Form';
@@ -23,6 +25,7 @@ export default function Installments() {
   const [q, setQ] = useState('');
   const dq = useDebounce(q);
   const [pay, setPay] = useState<Installment | null>(null);
+  const company = useCompanyName();
   const page = Number(params.get('page') || 1);
   const query = {
     range: range === 'all' ? undefined : range,
@@ -89,7 +92,12 @@ export default function Installments() {
         ) : !data?.data.length ? (
           <EmptyState icon={<CalendarClock />} title={range === 'overdue' ? 'Nothing overdue' : 'No installments in this view'} message={range === 'overdue' ? 'Every customer is up to date.' : 'Try another range.'} />
         ) : (
-          <InstallmentTable rows={data.data} onPay={setPay} showCustomer />
+          <InstallmentTable
+            rows={data.data}
+            onPay={setPay}
+            showCustomer
+            remindHref={(i) => waHref(i.customer_phone, installmentReminder({ name: i.customer_name ?? '', label: i.label, balance: i.balance, due_date: i.due_date, company }))}
+          />
         )}
         {data && <Pagination meta={data.meta} onPage={(p) => setParams({ range, page: String(p) }, { replace: true })} />}
       </Card>

@@ -59,7 +59,7 @@ export default function SiteVisits() {
     <div>
       <PageHeader
         title="Site visits"
-        subtitle="Plan, run and record every visit to Starwiz Green Valley"
+        subtitle="Plan, run and record every site visit"
         crumbs={[{ label: 'Home', to: '/' }, { label: 'Site visits' }]}
         actions={
           <Button variant="primary" icon={<CalendarPlus />} onClick={() => setParams({ new: '1' }, { replace: true })}>

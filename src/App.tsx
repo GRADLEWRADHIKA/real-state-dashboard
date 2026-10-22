@@ -23,6 +23,10 @@ const FinanceOverview = lazy(() => import('@/pages/finance/FinanceOverview'));
 const Transactions = lazy(() => import('@/pages/finance/Transactions'));
 const Installments = lazy(() => import('@/pages/finance/Installments'));
 const Receipt = lazy(() => import('@/pages/finance/Receipt'));
+const Brokers = lazy(() => import('@/pages/Brokers'));
+const BrokerDetail = lazy(() => import('@/pages/BrokerDetail'));
+const Expenses = lazy(() => import('@/pages/Expenses'));
+const Staff = lazy(() => import('@/pages/Staff'));
 const Documents = lazy(() => import('@/pages/Documents'));
 const Reports = lazy(() => import('@/pages/Reports'));
 const Users = lazy(() => import('@/pages/Users'));
@@ -34,6 +38,7 @@ const NotFound = lazy(() => import('@/pages/NotFound'));
 const SALES: Role[] = ['admin', 'manager', 'sales'];
 const STAFF: Role[] = ['admin', 'manager', 'sales', 'accounts'];
 const FIN: Role[] = ['admin', 'accounts'];
+const OFFICE: Role[] = ['admin', 'manager', 'accounts'];
 
 const guard = (roles: Role[], el: React.ReactNode) => <RequireRole roles={roles}>{el}</RequireRole>;
 
@@ -71,10 +76,14 @@ export default function App() {
         <Route path="finance" element={guard(FIN, <FinanceOverview />)} />
         <Route path="finance/transactions" element={guard(FIN, <Transactions />)} />
         <Route path="finance/installments" element={guard(FIN, <Installments />)} />
+        <Route path="expenses" element={guard(FIN, <Expenses />)} />
+        <Route path="brokers" element={guard(OFFICE, <Brokers />)} />
+        <Route path="brokers/:id" element={guard(OFFICE, <BrokerDetail />)} />
         <Route path="receipts/:id" element={guard(STAFF, <Receipt />)} />
         <Route path="documents" element={guard(STAFF, <Documents />)} />
         <Route path="reports" element={guard(['admin', 'manager', 'accounts'], <Reports />)} />
         <Route path="requests" element={guard(STAFF, <Requests />)} />
+        <Route path="staff" element={guard(OFFICE, <Staff />)} />
         <Route path="users" element={guard(['admin', 'manager'], <Users />)} />
         <Route path="audit" element={guard(['admin'], <AuditLog />)} />
         <Route path="settings" element={guard(STAFF, <Settings />)} />
