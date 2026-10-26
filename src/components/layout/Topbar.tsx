@@ -28,7 +28,7 @@ const NOTIF_ICON: Record<string, typeof Bell> = {
   document: FileText,
 };
 
-function NotificationBell() {
+export function NotificationBell() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);

@@ -11,11 +11,34 @@ test('staff sign in and land on their home screen', async ({ page }) => {
   expect(errors).toEqual([]);
 });
 
-test('customers are refused and pointed to the mobile app', async ({ page }) => {
-  watchErrors(page);
+test('customers land on their own portal Home', async ({ page }) => {
+  const errors = watchErrors(page);
   await fillLogin(page, DEMO.customer.email, DEMO.customer.password);
-  await expect(page.getByText(/mobile app/i).first()).toBeVisible();
-  await expect(page).toHaveURL(/\/login/);
+  await expect(page).toHaveURL(/\/$/);
+  await expect(page.getByText('Your property', { exact: true })).toBeVisible();
+  await expect(page.getByText('Payment summary')).toBeVisible();
+  // Staff screens are not available: they fall back to the portal Home, without staff navigation.
+  await page.goto('/leads');
+  await expect(page).toHaveURL(/\/$/);
+  await expect(page.getByRole('link', { name: 'Leads' })).toHaveCount(0);
+  expect(errors).toEqual([]);
+});
+
+test('customer opens Home, Payments and Documents on the dashboard', async ({ page }) => {
+  const errors = watchErrors(page);
+  await fillLogin(page, DEMO.customer.email, DEMO.customer.password);
+  await expect(page.getByText('Your property', { exact: true })).toBeVisible();
+  const nav = page.getByRole('navigation', { name: 'Primary', exact: true });
+  await nav.getByRole('link', { name: 'Payments' }).click();
+  await expect(page).toHaveURL(/\/payments$/);
+  await expect(page.getByRole('heading', { name: 'Instalment schedule' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Receipts' })).toBeVisible();
+  await nav.getByRole('link', { name: 'Documents' }).click();
+  await expect(page).toHaveURL(/\/documents$/);
+  await expect(page.getByRole('button', { name: 'Upload document' })).toBeVisible();
+  await page.getByRole('button', { name: 'Upload document' }).click();
+  await expect(page.getByRole('dialog')).toBeVisible();
+  expect(errors).toEqual([]);
 });
 
 test('a wrong password shows an error and stays on the sign-in screen', async ({ page }) => {

@@ -53,7 +53,7 @@ export function AppShell() {
   }, [location.pathname]);
 
   if (!user) return <Navigate to="/login" replace state={{ from: location.pathname + location.search }} />;
-  if (user.role === 'customer') return <Navigate to="/portal" replace />;
+  if (user.role === 'customer') return <Navigate to="/" replace />;
 
   return (
     <div className="min-h-dvh">

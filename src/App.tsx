@@ -1,4 +1,4 @@
-import { lazy } from 'react';
+import { Suspense, lazy } from 'react';
 import { Navigate, Route, Routes, useLocation } from 'react-router';
 import { siteRoutes } from '@estateflow/site';
 import { homeFor, useAuth } from '@/lib/auth';
@@ -34,6 +34,15 @@ const Settings = lazy(() => import('@/pages/Settings'));
 const AuditLog = lazy(() => import('@/pages/AuditLog'));
 const Requests = lazy(() => import('@/pages/Requests'));
 const NotFound = lazy(() => import('@/pages/NotFound'));
+const Portal = {
+  Shell: lazy(() => import('@/pages/portal/Portal').then((m) => ({ default: m.CustomerShell }))),
+  Home: lazy(() => import('@/pages/portal/Portal').then((m) => ({ default: m.PortalHome }))),
+  Payments: lazy(() => import('@/pages/portal/Portal').then((m) => ({ default: m.PortalPayments }))),
+  Documents: lazy(() => import('@/pages/portal/Portal').then((m) => ({ default: m.PortalDocuments }))),
+  Requests: lazy(() => import('@/pages/portal/Portal').then((m) => ({ default: m.PortalRequests }))),
+  Notifications: lazy(() => import('@/pages/portal/Portal').then((m) => ({ default: m.PortalNotifications }))),
+  Profile: lazy(() => import('@/pages/portal/Portal').then((m) => ({ default: m.PortalProfile }))),
+};
 
 const SALES: Role[] = ['admin', 'manager', 'sales'];
 const STAFF: Role[] = ['admin', 'manager', 'sales', 'accounts'];
@@ -54,6 +63,27 @@ function LoginRoute() {
 export default function App() {
   const { user, ready } = useAuth();
   if (!ready) return <SplashScreen />;
+
+  // Customers get their own portal; any staff path falls through to their Home.
+  if (user?.role === 'customer')
+    return (
+      <Suspense fallback={<SplashScreen />}>
+        <Routes>
+          <Route path="/login" element={<LoginRoute />} />
+          {siteRoutes({ withHome: false, account: { to: '/', label: 'My property' } })}
+          <Route element={<Portal.Shell />}>
+            <Route index element={<Portal.Home />} />
+            <Route path="payments" element={<Portal.Payments />} />
+            <Route path="documents" element={<Portal.Documents />} />
+            <Route path="requests" element={<Portal.Requests />} />
+            <Route path="notifications" element={<Portal.Notifications />} />
+            <Route path="profile" element={<Portal.Profile />} />
+            <Route path="settings" element={<Navigate to="/profile" replace />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Route>
+        </Routes>
+      </Suspense>
+    );
 
   return (
     <Routes>

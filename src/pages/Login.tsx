@@ -17,6 +17,7 @@ const DEMO_ACCOUNTS = [
   { role: 'Sales Manager', email: 'manager@demo.com', password: 'Manager@123' },
   { role: 'Sales Executive', email: 'sales@demo.com', password: 'Sales@123' },
   { role: 'Accounts', email: 'accounts@demo.com', password: 'Accounts@123' },
+  { role: 'Customer', email: 'customer@demo.com', password: 'Customer@123' },
 ];
 
 function Skyline() {
@@ -372,7 +373,7 @@ export default function LoginPage() {
 
             <p className="mt-8 flex items-start gap-2 text-[12.5px] leading-relaxed text-stone-500">
               <Smartphone className="mt-0.5 size-4 shrink-0 text-stone-400" />
-              Customers sign in from the EstateFlow mobile app to see their property, payments and receipts.
+              Customers can sign in here or in the EstateFlow mobile app to see their property, payments and documents.
             </p>
           </div>
         </div>
