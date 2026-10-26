@@ -15,8 +15,9 @@ test('customers land on their own portal Home', async ({ page }) => {
   const errors = watchErrors(page);
   await fillLogin(page, DEMO.customer.email, DEMO.customer.password);
   await expect(page).toHaveURL(/\/$/);
-  await expect(page.getByText('Your property', { exact: true })).toBeVisible();
-  await expect(page.getByText('Payment summary')).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: /Villa V-03/ })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /Next instalment/ })).toBeVisible();
+  await expect(page.getByRole('img', { name: /instalments paid/ })).toBeVisible();
   // Staff screens are not available: they fall back to the portal Home, without staff navigation.
   await page.goto('/leads');
   await expect(page).toHaveURL(/\/$/);
@@ -27,7 +28,7 @@ test('customers land on their own portal Home', async ({ page }) => {
 test('customer opens Home, Payments and Documents on the dashboard', async ({ page }) => {
   const errors = watchErrors(page);
   await fillLogin(page, DEMO.customer.email, DEMO.customer.password);
-  await expect(page.getByText('Your property', { exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Your home' })).toBeVisible();
   const nav = page.getByRole('navigation', { name: 'Primary', exact: true });
   await nav.getByRole('link', { name: 'Payments' }).click();
   await expect(page).toHaveURL(/\/payments$/);
@@ -35,8 +36,8 @@ test('customer opens Home, Payments and Documents on the dashboard', async ({ pa
   await expect(page.getByRole('heading', { name: 'Receipts' })).toBeVisible();
   await nav.getByRole('link', { name: 'Documents' }).click();
   await expect(page).toHaveURL(/\/documents$/);
-  await expect(page.getByRole('button', { name: 'Upload document' })).toBeVisible();
-  await page.getByRole('button', { name: 'Upload document' }).click();
+  await expect(page.getByRole('heading', { name: 'Identity & KYC' })).toBeVisible();
+  await page.getByRole('button', { name: 'Upload a document' }).click();
   await expect(page.getByRole('dialog')).toBeVisible();
   expect(errors).toEqual([]);
 });
