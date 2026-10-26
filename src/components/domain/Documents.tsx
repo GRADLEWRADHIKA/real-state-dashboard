@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { Download, Eye, FileImage, FileSpreadsheet, FileText, Trash2, Upload } from 'lucide-react';
-import { UPLOAD_ACCEPT } from '@estateflow/shared';
+import { DOCUMENT_SECTIONS, UPLOAD_ACCEPT, documentSection } from '@estateflow/shared';
 import { toast } from 'sonner';
 import { api } from '@/lib/api';
 import { fileSize, fmtDate } from '@/lib/format';
@@ -199,5 +199,52 @@ export function DocumentList({ docs, canDelete = true, showEntity, emptyAction }
         </li>
       ))}
     </ul>
+  );
+}
+
+/**
+ * A customer's paperwork split into the sections a plot sale produces (KYC, booking, payments, land
+ * records, registry, other). Each section uploads its own types and lists the papers still missing.
+ */
+export function DocumentSections({ docs, entityType, entityId }: { docs: DocumentItem[]; entityType: string; entityId: number }) {
+  const [uploading, setUploading] = useState<{ types: readonly string[]; type: string; title: string } | null>(null);
+  return (
+    <div className="divide-y divide-stone-100">
+      {DOCUMENT_SECTIONS.map((section) => {
+        const mine = docs.filter((d) => documentSection(d.doc_type).key === section.key);
+        const have = new Set(mine.map((d) => d.doc_type));
+        const missing = section.required.filter((t) => !have.has(t));
+        return (
+          <section key={section.key} aria-labelledby={`docs-${section.key}`} className="py-1">
+            <div className="flex flex-wrap items-center justify-between gap-2 px-4 pt-3 sm:px-5">
+              <div className="min-w-0">
+                <h3 id={`docs-${section.key}`} className="text-[14px] font-bold text-ink">
+                  {section.title} <span className="font-medium text-stone-400">· {section.hindi}</span>
+                </h3>
+                <p className="text-[12px] text-stone-500">
+                  {mine.length} {mine.length === 1 ? 'document' : 'documents'}
+                  {missing.length > 0 && <span className="text-amber-700"> · Missing: {missing.join(', ')}</span>}
+                </p>
+              </div>
+              <Button size="sm" variant="secondary" icon={<Upload />} onClick={() => setUploading({ types: section.types, type: missing[0] ?? section.types[0], title: section.title })}>
+                Upload
+              </Button>
+            </div>
+            {mine.length > 0 ? <DocumentList docs={mine} /> : <p className="px-4 pt-1 pb-3 text-[12.5px] text-stone-400 sm:px-5">Nothing uploaded yet.</p>}
+          </section>
+        );
+      })}
+      {uploading && (
+        <UploadDocumentModal
+          open
+          onClose={() => setUploading(null)}
+          entityType={entityType}
+          entityId={entityId}
+          types={uploading.types}
+          defaultType={uploading.type}
+          title={`Upload to ${uploading.title}`}
+        />
+      )}
+    </div>
   );
 }

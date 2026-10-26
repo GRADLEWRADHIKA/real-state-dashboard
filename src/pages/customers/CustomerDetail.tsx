@@ -21,7 +21,7 @@ import { Modal, useConfirm } from '@/components/ui/Modal';
 import { ActivityTimeline } from '@/components/domain/Timeline';
 import { FinancialSummary, InstallmentTable } from '@/components/domain/FinanceViews';
 import { RecordPaymentModal } from '@/components/domain/FinanceForms';
-import { DocumentList, UploadDocumentModal } from '@/components/domain/Documents';
+import { DocumentSections, UploadDocumentModal } from '@/components/domain/Documents';
 import { PropertyThumb } from '@/components/domain/PropertyGallery';
 import type { Activity, Broker, Customer, CustomerRequest, Deal, DocumentItem, Financials, Installment, Property, Transaction } from '@/types';
 
@@ -31,6 +31,8 @@ type Detail = Customer & {
   installments: Installment[];
   transactions: Transaction[];
   documents: DocumentItem[];
+  /** True for staff who may not open customer papers (only administrators and accounts may). */
+  documents_hidden?: boolean;
   activities: Activity[];
   lead: { id: number; code: string; source: string; created_at: string } | null;
   portalUser: {
@@ -417,9 +419,11 @@ export default function CustomerDetail() {
                 </Tooltip>
               )}
             </div>
-            <Button icon={<Upload />} onClick={() => setModal('upload')}>
-              Upload
-            </Button>
+            {!c.documents_hidden && (
+              <Button icon={<Upload />} onClick={() => setModal('upload')}>
+                Upload
+              </Button>
+            )}
             {finance && next && !cancelled && (
               <Button variant="primary" icon={<IndianRupee />} onClick={() => setPayFor(next)}>
                 Record payment
@@ -461,14 +465,16 @@ export default function CustomerDetail() {
       <Card className="mb-5 p-5 sm:p-6">
         <div className="flex flex-col gap-5 lg:flex-row lg:items-start">
           <div className="flex items-center gap-4 lg:w-60 lg:shrink-0">
-            <CustomerPhoto c={c} onUpload={() => setModal('photo')} />
+            {c.documents_hidden ? <Avatar name={c.name} size="xl" className="size-20 shrink-0 rounded-2xl text-[26px] sm:size-24" /> : <CustomerPhoto c={c} onUpload={() => setModal('photo')} />}
             <div className="min-w-0">
               <p className="truncate text-[16px] font-bold text-ink">{c.name}</p>
               <p className="text-[12.5px] text-stone-500">{c.code}</p>
               <p className="text-[12.5px] text-stone-500">{c.phone}</p>
-              <button type="button" onClick={() => setModal('photo')} className="mt-1 inline-flex items-center gap-1 text-[12.5px] font-semibold text-brand-800 hover:underline">
-                <Camera className="size-3.5" /> {c.photo_document_id ? 'Change photo' : 'Upload photo'}
-              </button>
+              {!c.documents_hidden && (
+                <button type="button" onClick={() => setModal('photo')} className="mt-1 inline-flex items-center gap-1 text-[12.5px] font-semibold text-brand-800 hover:underline">
+                  <Camera className="size-3.5" /> {c.photo_document_id ? 'Change photo' : 'Upload photo'}
+                </button>
+              )}
             </div>
           </div>
           <dl className="grid flex-1 grid-cols-2 gap-x-4 gap-y-3.5 sm:grid-cols-3 xl:grid-cols-5">
@@ -522,11 +528,15 @@ export default function CustomerDetail() {
                 label: 'Payment history',
                 count: c.transactions.length,
               },
-              {
-                value: 'documents',
-                label: 'Documents',
-                count: c.documents.length,
-              },
+              ...(c.documents_hidden
+                ? []
+                : [
+                    {
+                      value: 'documents' as const,
+                      label: 'Documents',
+                      count: c.documents.length,
+                    },
+                  ]),
               {
                 value: 'requests',
                 label: 'Requests',
@@ -632,14 +642,7 @@ export default function CustomerDetail() {
               <EmptyState compact icon={<Receipt />} title="No payments recorded yet" />
             ))}
           {tab === 'documents' && (
-            <div>
-              <div className="flex justify-end px-5 pt-4">
-                <Button size="sm" icon={<Upload />} onClick={() => setModal('upload')}>
-                  Upload
-                </Button>
-              </div>
-              <DocumentList docs={c.documents} />
-            </div>
+            <DocumentSections docs={c.documents} entityType="customer" entityId={c.id} />
           )}
           {tab === 'requests' &&
             (c.requests.length ? (
