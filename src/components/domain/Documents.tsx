@@ -35,6 +35,7 @@ export function UploadDocumentModal({
   description = 'PDF, images, Word, Excel, CSV or text up to 10 MB',
   success = 'Document uploaded',
   endpoint = '/documents',
+  fields,
 }: {
   open: boolean;
   onClose: () => void;
@@ -49,6 +50,8 @@ export function UploadDocumentModal({
   success?: string;
   /** Upload target; '/portal/documents' is the signed-in customer's own file (no entity fields). */
   endpoint?: string;
+  /** Extra form fields for other targets, e.g. the folder for '/vault'. */
+  fields?: Record<string, string>;
 }) {
   const [file, setFile] = useState<File | null>(null);
   const [docType, setDocType] = useState(defaultType);
@@ -64,6 +67,7 @@ export function UploadDocumentModal({
         fd.append('entity_type', entityType);
         fd.append('entity_id', String(entityId));
       }
+      for (const [k, v] of Object.entries(fields ?? {})) fd.append(k, v);
       fd.append('doc_type', docType);
       if (name.trim()) fd.append('name', name.trim());
       setProgress(0);

@@ -14,6 +14,7 @@ import { Modal } from '@/components/ui/Modal';
 import { DocumentList, UploadDocumentModal } from '@/components/domain/Documents';
 import type { Customer, DocumentItem, Lead, Paged, Property } from '@/types';
 import { useUser, can } from '@/lib/auth';
+import { PRIVATE_FOLDERS, type PrivateFolder } from '@estateflow/shared';
 
 type Entity = 'lead' | 'customer' | 'property';
 
@@ -104,8 +105,14 @@ function PickEntity({ open, onClose, onPick }: { open: boolean; onClose: () => v
   );
 }
 
+type Tab = 'all' | 'customer' | 'lead' | 'property' | 'deal' | PrivateFolder;
+
 export default function Documents() {
-  const [entity, setEntity] = useState<'all' | 'customer' | 'lead' | 'property' | 'deal'>('all');
+  const user = useUser();
+  const privateOpen = user.role === 'admin' || user.role === 'accounts';
+  const [entity, setEntity] = useState<Tab>('all');
+  const folder = PRIVATE_FOLDERS.find((f) => f.key === entity);
+  const [privateUpload, setPrivateUpload] = useState(false);
   const [docType, setDocType] = useState('');
   const [q, setQ] = useState('');
   const dq = useDebounce(q);
@@ -114,7 +121,9 @@ export default function Documents() {
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['documents', entity, docType, dq],
     queryFn: () =>
-      api.get<Paged<DocumentItem>>('/documents', {
+      folder
+        ? api.get<{ data: DocumentItem[] }>('/vault', { folder: folder.key, doc_type: docType || undefined, q: dq || undefined }).then((r) => ({ ...r, meta: { total: r.data.length } }) as unknown as Paged<DocumentItem>)
+        : api.get<Paged<DocumentItem>>('/documents', {
         entity_type: entity === 'all' ? undefined : entity,
         doc_type: docType,
         q: dq,
@@ -125,11 +134,11 @@ export default function Documents() {
     <div>
       <PageHeader
         title="Documents"
-        subtitle="KYC, agreements, booking forms and property documents in one secure place"
+        subtitle={folder ? `${folder.title} documents · ${folder.note}. Never shown to customers or sales staff.` : 'KYC, agreements, booking forms and property documents in one secure place'}
         crumbs={[{ label: 'Home', to: '/' }, { label: 'Documents' }]}
         actions={
-          <Button variant="primary" icon={<Upload />} onClick={() => setPick(true)}>
-            Upload document
+          <Button variant="primary" icon={<Upload />} onClick={() => (folder ? setPrivateUpload(true) : setPick(true))}>
+            {folder ? `Upload to ${folder.title}` : 'Upload document'}
           </Button>
         }
       />
@@ -137,18 +146,22 @@ export default function Documents() {
         <Tabs
           className="px-4 pt-1 sm:px-5"
           value={entity}
-          onChange={setEntity}
+          onChange={(v) => {
+            setEntity(v);
+            setDocType('');
+          }}
           tabs={[
             { value: 'all', label: 'All documents' },
             { value: 'customer', label: 'Customers' },
             { value: 'lead', label: 'Leads' },
             { value: 'property', label: 'Properties' },
             { value: 'deal', label: 'Deals' },
+            ...(privateOpen ? PRIVATE_FOLDERS.map((f) => ({ value: f.key, label: f.title })) : []),
           ]}
         />
         <div className="flex flex-col gap-2.5 border-b border-stone-100 px-4 py-3 sm:flex-row sm:items-center sm:px-5">
           <SearchInput value={q} onChange={setQ} placeholder="Search file name…" className="sm:w-72" />
-          <FilterSelect value={docType} onChange={setDocType} placeholder="All document types" options={[...DOCUMENT_TYPES]} className="sm:w-52" />
+          <FilterSelect value={docType} onChange={setDocType} placeholder="All document types" options={folder ? [...folder.types] : [...DOCUMENT_TYPES]} className="sm:w-52" />
           <p className="text-[13px] text-stone-500 sm:ml-auto">{data?.meta.total ?? 0} files</p>
         </div>
         {error ? (
@@ -162,10 +175,10 @@ export default function Documents() {
         ) : (
           <DocumentList
             docs={data?.data ?? []}
-            showEntity
+            showEntity={!folder}
             emptyAction={
-              <Button variant="primary" icon={<Upload />} onClick={() => setPick(true)}>
-                Upload document
+              <Button variant="primary" icon={<Upload />} onClick={() => (folder ? setPrivateUpload(true) : setPick(true))}>
+                {folder ? `Upload to ${folder.title}` : 'Upload document'}
               </Button>
             }
           />
@@ -179,6 +192,20 @@ export default function Documents() {
           setTarget({ type, id });
         }}
       />
+      {folder && privateUpload && (
+        <UploadDocumentModal
+          open
+          onClose={() => setPrivateUpload(false)}
+          entityType={folder.key}
+          entityId={0}
+          endpoint="/vault"
+          fields={{ folder: folder.key }}
+          types={folder.types}
+          defaultType={folder.types[0]}
+          title={`Upload to ${folder.title}`}
+          description={`${folder.note}. PDF, images, Word, Excel or CSV up to 10 MB.`}
+        />
+      )}
       {target && <UploadDocumentModal open onClose={() => setTarget(null)} entityType={target.type} entityId={target.id} defaultType={target.type === 'property' ? 'Property Documents' : 'Other'} />}
     </div>
   );
