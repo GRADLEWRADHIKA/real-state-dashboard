@@ -1,4 +1,4 @@
-import { NavLink } from 'react-router';
+import { NavLink, useLocation } from 'react-router';
 import { LogOut } from 'lucide-react';
 import { navFor } from '@/lib/nav';
 import { useAuth, useUser } from '@/lib/auth';
@@ -10,6 +10,8 @@ export function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   const user = useUser();
   const { logout } = useAuth();
   const sections = navFor(user.role);
+  const { pathname } = useLocation();
+  const excluded = (item: { exclude?: string[] }) => !!item.exclude?.some((p) => pathname === p || pathname.startsWith(`${p}/`));
   return (
     <div className="flex h-full flex-col bg-brand-950 bg-[radial-gradient(120%_60%_at_0%_0%,rgb(15_81_50/0.55),transparent_70%)] text-brand-100">
       <div className="safe-top px-4 pt-5 pb-4">
@@ -26,15 +28,18 @@ export function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
                     to={item.to}
                     end={item.end}
                     onClick={onNavigate}
-                    className={({ isActive }) => cn('group relative flex items-center gap-3 rounded-[10px] px-3 py-2 text-[13.5px] font-semibold transition-colors', isActive ? 'bg-white/[0.09] text-white' : 'text-brand-100/70 hover:bg-white/[0.05] hover:text-white')}
+                    className={({ isActive: active }) => cn('group relative flex items-center gap-3 rounded-[10px] px-3 py-2 text-[13.5px] font-semibold transition-colors', active && !excluded(item) ? 'bg-white/[0.09] text-white' : 'text-brand-100/70 hover:bg-white/[0.05] hover:text-white')}
                   >
-                    {({ isActive }) => (
+                    {({ isActive: active }) => {
+                      const isActive = active && !excluded(item);
+                      return (
                       <>
                         {isActive && <span className="absolute top-2 bottom-2 left-0 w-[3px] rounded-r-full bg-gold-400" />}
                         <item.icon className={cn('size-[18px] shrink-0', isActive ? 'text-gold-300' : 'text-brand-300/60 group-hover:text-brand-100')} strokeWidth={2} />
                         {item.label}
                       </>
-                    )}
+                      );
+                    }}
                   </NavLink>
                 </li>
               ))}

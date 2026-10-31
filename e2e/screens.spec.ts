@@ -6,14 +6,16 @@ import { login, settled, watchErrors, type DemoRole } from './helpers';
  * exceptions or API calls that come back 4xx/5xx.
  */
 const SCREENS: Record<Exclude<DemoRole, 'customer'>, string[]> = {
-  admin: ['/', '/leads', '/leads/1', '/pipeline', '/site-visits', '/followups', '/customers', '/customers/6', '/deals', '/requests', '/properties', '/properties/1', '/tasks', '/finance', '/finance/transactions', '/finance/installments', '/documents', '/reports', '/users', '/users?tab=resets', '/audit', '/settings'],
-  manager: ['/', '/leads', '/pipeline', '/site-visits', '/followups', '/customers', '/deals', '/requests', '/properties', '/tasks', '/documents', '/reports', '/users', '/settings'],
-  sales: ['/', '/leads', '/pipeline', '/site-visits', '/followups', '/customers', '/deals', '/requests', '/properties', '/tasks', '/documents', '/settings'],
-  accounts: ['/finance', '/finance/transactions', '/finance/installments', '/customers', '/requests', '/properties', '/tasks', '/documents', '/reports', '/settings'],
+  admin: ['/', '/leads', '/leads/1', '/pipeline', '/site-visits', '/followups', '/customers', '/customers/6', '/deals', '/requests', '/properties', '/properties/1', '/tasks', '/finance', '/finance/transactions', '/finance/installments', '/documents', '/reports', '/users', '/users?tab=resets', '/audit', '/settings', '/leads/insights', '/price-list', '/refunds', '/feedback'],
+  manager: ['/', '/leads', '/pipeline', '/site-visits', '/followups', '/customers', '/deals', '/requests', '/properties', '/tasks', '/documents', '/reports', '/users', '/settings', '/leads/insights', '/price-list', '/refunds', '/feedback'],
+  sales: ['/', '/leads', '/pipeline', '/site-visits', '/followups', '/customers', '/deals', '/requests', '/properties', '/tasks', '/documents', '/settings', '/leads/insights', '/price-list'],
+  accounts: ['/finance', '/finance/transactions', '/finance/installments', '/customers', '/requests', '/properties', '/tasks', '/documents', '/reports', '/settings', '/price-list', '/refunds'],
 };
 
 for (const [role, paths] of Object.entries(SCREENS) as [Exclude<DemoRole, 'customer'>, string[]][]) {
   test(`${role}: every screen loads cleanly`, async ({ page }) => {
+    // One test walks every screen of the role, so it gets more than the default per-test budget.
+    test.setTimeout(120_000);
     const errors = watchErrors(page);
     await login(page, role);
     for (const path of paths) {

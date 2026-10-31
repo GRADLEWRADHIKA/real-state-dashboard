@@ -18,6 +18,7 @@ import { PropertyArt } from '@/components/domain/PropertyArt';
 import { PropertyCover } from '@/components/domain/PropertyGallery';
 import { PropertyFormModal } from '@/components/domain/PropertyForm';
 import { PlotMap } from '@/components/domain/PlotMap';
+import { holdLabel } from '@/components/domain/HoldForms';
 import type { Paged, Property } from '@/types';
 
 type PropertiesResponse = Paged<
@@ -132,7 +133,12 @@ export default function PropertiesList() {
       {
         key: 'status',
         header: 'Status',
-        cell: (p) => <PropertyStatusBadge status={p.status} />,
+        cell: (p) => (
+          <div className="whitespace-nowrap">
+            <PropertyStatusBadge status={p.status} />
+            {holdLabel(p) && <p className="mt-0.5 text-[11.5px] font-semibold text-amber-700">{holdLabel(p)}</p>}
+          </div>
+        ),
       },
       {
         key: 'agent',
@@ -301,7 +307,7 @@ export default function PropertiesList() {
                   )}
                 </div>
                 <div className="mt-3.5 flex items-center justify-between border-t border-stone-100 pt-3 text-[12px]">
-                  <span className="text-stone-500">{p.customer_name ? `Booked by ${p.customer_name}` : (p.agent_name ?? 'Unassigned')}</span>
+                  {holdLabel(p) ? <span className="font-semibold text-amber-700">{holdLabel(p)}</span> : <span className="text-stone-500">{p.customer_name ? `Booked by ${p.customer_name}` : (p.agent_name ?? 'Unassigned')}</span>}
                   <span className="flex items-center gap-1 font-semibold text-stone-600">
                     <Users className="size-3.5" /> {p.interested_count ?? 0} interested
                   </span>
@@ -328,6 +334,7 @@ export default function PropertiesList() {
                     <PropertyStatusBadge status={p.status} />
                   </div>
                   <p className="text-[12.5px] text-stone-500">{p.name}</p>
+                  {holdLabel(p) && <p className="text-[12px] font-semibold text-amber-700">{holdLabel(p)}</p>}
                   <p className="mt-1 text-[13px] font-bold text-ink">{inrShort(p.price)}</p>
                 </div>
               </div>

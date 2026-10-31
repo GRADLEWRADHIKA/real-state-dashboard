@@ -19,6 +19,7 @@ import { useConfirm } from '@/components/ui/Modal';
 import { LeadFormModal } from '@/components/domain/LeadForms';
 import { LeadImportModal } from '@/components/domain/LeadImport';
 import { SavedViews } from '@/components/domain/SavedViews';
+import { IdleMarker, ScoreBadge } from '@/components/domain/LeadHeat';
 import type { Lead, Paged } from '@/types';
 
 const CREATED = [
@@ -119,6 +120,15 @@ export default function LeadsList() {
         ),
       },
       {
+        key: 'score',
+        header: 'Score',
+        cell: (l) => (
+          <div title={l.score_reason}>
+            <ScoreBadge score={l.score} />
+          </div>
+        ),
+      },
+      {
         key: 'contact',
         header: 'Contact',
         cell: (l) => (
@@ -184,7 +194,12 @@ export default function LeadsList() {
         key: 'last_contact',
         header: 'Last contact',
         sortKey: 'last_contact',
-        cell: (l) => <span className="whitespace-nowrap text-stone-500">{l.last_contact ? timeAgo(l.last_contact) : 'Never'}</span>,
+        cell: (l) => (
+          <div className="whitespace-nowrap">
+            <p className="text-stone-500">{l.last_contact ? timeAgo(l.last_contact) : 'Never'}</p>
+            <IdleMarker lead={l} />
+          </div>
+        ),
       },
       {
         key: 'next',
@@ -393,6 +408,8 @@ export default function LeadsList() {
                     </span>
                   )}
                   <PriorityBadge priority={l.priority} />
+                  <ScoreBadge score={l.score} />
+                  <IdleMarker lead={l} />
                 </div>
                 <p className="mt-1.5 text-[12px] text-stone-400">
                   {l.agent_name ?? 'Unassigned'} · {l.next_followup ? `Follow-up ${relativeDay(l.next_followup).toLowerCase()}` : 'No follow-up'}

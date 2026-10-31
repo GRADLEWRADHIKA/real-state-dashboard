@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { X } from 'lucide-react';
 import { api } from '@/lib/api';
 import { PROPERTY_STATUSES, PROPERTY_TYPES } from '@/lib/utils';
@@ -7,7 +8,7 @@ import { required, useForm } from '@/hooks/useForm';
 import { Button } from '@/components/ui/Button';
 import { Checkbox, Field, Input, MoneyInput, Select, Textarea } from '@/components/ui/Form';
 import { Modal } from '@/components/ui/Modal';
-import type { Property } from '@/types';
+import type { PriceListResponse, Property } from '@/types';
 
 const SUGGESTED = ['Gated entry with security', 'Clubhouse', 'Swimming pool', 'Gymnasium', 'Kids play area', 'Landscaped parks', 'Power backup', 'Covered parking', '30 & 40 ft internal roads', 'Street lighting', 'CCTV surveillance', 'Lifts with power backup'];
 
@@ -85,6 +86,13 @@ export function PropertyFormModal({ open, onClose, property, onSaved }: { open: 
       },
     },
   );
+  const priceList = useQuery({
+    queryKey: ['price-list', 'all'],
+    queryFn: () => api.get<PriceListResponse>('/price-list'),
+    enabled: open,
+    staleTime: 60_000,
+  });
+  const listRate = priceList.data?.meta.current.find((e) => e.project === f.values.project.trim() && (e.block ?? '') === f.values.block.trim());
   const residential = ['Apartment', 'Villa'].includes(f.values.type);
   /** Price follows rate × area whenever both are filled; it stays editable afterwards. */
   const setSize = (key: 'area_sqft' | 'rate_per_sqft', value: number | string) => {
@@ -145,7 +153,25 @@ export function PropertyFormModal({ open, onClose, property, onSaved }: { open: 
         <Field label="Area (sq ft)" required error={f.errors.area_sqft}>
           {(id) => <Input id={id} type="number" inputMode="numeric" min={50} value={f.values.area_sqft} onChange={(e) => setSize('area_sqft', e.target.value)} aria-invalid={!!f.errors.area_sqft} />}
         </Field>
-        <Field label="Rate per sq ft (₹)" hint="Price is worked out as rate × area" error={f.errors.rate_per_sqft}>
+        <Field
+          label="Rate per sq ft (₹)"
+          hint={
+            listRate ? (
+              <span data-testid="price-list-hint">
+                Current price-list rate for {listRate.project}
+                {listRate.block ? ` block ${listRate.block}` : ''}: <b className="font-semibold text-brand-800">₹{listRate.rate_per_sqft.toLocaleString('en-IN')}/sq ft</b>
+                {Number(f.values.rate_per_sqft) !== listRate.rate_per_sqft && (
+                  <button type="button" className="ml-1.5 font-semibold text-brand-800 underline underline-offset-2" onClick={() => setSize('rate_per_sqft', listRate.rate_per_sqft)}>
+                    Use it
+                  </button>
+                )}
+              </span>
+            ) : (
+              'Price is worked out as rate × area'
+            )
+          }
+          error={f.errors.rate_per_sqft}
+        >
           {(id) => <MoneyInput id={id} value={f.values.rate_per_sqft} onChange={(v) => setSize('rate_per_sqft', v)} aria-invalid={!!f.errors.rate_per_sqft} />}
         </Field>
         <Field label="Price" required error={f.errors.price}>

@@ -1,4 +1,4 @@
-import { BadgeIndianRupee, BarChart3, IdCard, ReceiptIndianRupee, Building2, CalendarCheck2, FileText, Handshake, LayoutDashboard, ListChecks, PhoneCall, Receipt, Settings, SquareKanban, UserCog, UserRound, Users, Wallet, CalendarClock, Inbox, ScrollText, type LucideIcon } from 'lucide-react';
+import { BadgeIndianRupee, BarChart3, IdCard, ReceiptIndianRupee, Building2, CalendarCheck2, FileText, Handshake, LayoutDashboard, ListChecks, PhoneCall, Receipt, Settings, SquareKanban, UserCog, UserRound, Users, Wallet, CalendarClock, Inbox, ScrollText, Activity, Tags, Undo2, MessageSquareHeart, type LucideIcon } from 'lucide-react';
 import type { Role } from '@/types';
 
 export interface NavItem {
@@ -7,6 +7,8 @@ export interface NavItem {
   icon: LucideIcon;
   roles: Role[];
   end?: boolean;
+  /** Sub-paths that have their own nav entry, so this item is not also highlighted there. */
+  exclude?: string[];
 }
 
 const ALL: Role[] = ['admin', 'manager', 'sales', 'accounts'];
@@ -37,7 +39,8 @@ export const NAV: { title: string; items: NavItem[] }[] = [
   {
     title: 'Sales',
     items: [
-      { to: '/leads', label: 'Leads', icon: Users, roles: SALES },
+      { to: '/leads', label: 'Leads', icon: Users, roles: SALES, exclude: ['/leads/insights'] },
+      { to: '/leads/insights', label: 'Lead insights', icon: Activity, roles: SALES },
       { to: '/pipeline', label: 'Pipeline', icon: SquareKanban, roles: SALES },
       {
         to: '/site-visits',
@@ -50,11 +53,15 @@ export const NAV: { title: string; items: NavItem[] }[] = [
       { to: '/deals', label: 'Deals', icon: Handshake, roles: SALES },
       { to: '/brokers', label: 'Brokers', icon: BadgeIndianRupee, roles: OFFICE },
       { to: '/requests', label: 'Customer requests', icon: Inbox, roles: ALL },
+      { to: '/feedback', label: 'Feedback', icon: MessageSquareHeart, roles: ['admin', 'manager'] },
     ],
   },
   {
     title: 'Inventory',
-    items: [{ to: '/properties', label: 'Properties', icon: Building2, roles: ALL }],
+    items: [
+      { to: '/properties', label: 'Properties', icon: Building2, roles: ALL },
+      { to: '/price-list', label: 'Price list', icon: Tags, roles: ALL },
+    ],
   },
   {
     title: 'Finance',
@@ -79,6 +86,7 @@ export const NAV: { title: string; items: NavItem[] }[] = [
         roles: FIN,
       },
       { to: '/expenses', label: 'Expenses', icon: ReceiptIndianRupee, roles: FIN },
+      { to: '/refunds', label: 'Refunds', icon: Undo2, roles: OFFICE },
     ],
   },
   {

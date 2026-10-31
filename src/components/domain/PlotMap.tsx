@@ -8,7 +8,8 @@ import { cn } from '@/lib/utils';
 import { Card } from '@/components/ui/Card';
 import { Tooltip } from '@/components/ui/Misc';
 import { EmptyState, ErrorState, Skeleton } from '@/components/ui/Feedback';
-import type { PlotMapUnit } from '@/types';
+import type { PlotMapUnit, Property } from '@/types';
+import { holdLabel } from './HoldForms';
 
 /** Tile colours per status. "Reserved" is called "Hold" on the plot map, as the sales team does. */
 const STATUS: Record<string, { label: string; tile: string; dot: string }> = {
@@ -32,6 +33,11 @@ export function PlotMap({ filters }: { filters: PlotMapFilters }) {
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['properties', 'map'],
     queryFn: () => api.get<{ data: PlotMapUnit[] }>('/properties/map'),
+  });
+  // The map endpoint has no hold details; units on hold are few, so fetch them separately for the tooltip.
+  const holds = useQuery({
+    queryKey: ['properties', 'holds'],
+    queryFn: () => api.get<{ data: Property[] }>('/properties', { status: 'Reserved', limit: 500 }).then((r) => new Map(r.data.map((p) => [p.id, p]))),
   });
 
   const units = useMemo(() => {
@@ -104,6 +110,8 @@ export function PlotMap({ filters }: { filters: PlotMapFilters }) {
                   <div className="grid grid-cols-[repeat(auto-fill,minmax(3.25rem,1fr))] gap-1.5 sm:grid-cols-[repeat(auto-fill,minmax(3.75rem,1fr))]">
                     {list.map((u) => {
                       const st = STATUS[u.status] ?? STATUS.Sold;
+                      const hold = u.status === 'Reserved' ? holds.data?.get(u.id) : undefined;
+                      const holdText = hold ? holdLabel(hold) : null;
                       return (
                         <Tooltip
                           key={u.id}
@@ -118,6 +126,13 @@ export function PlotMap({ filters }: { filters: PlotMapFilters }) {
                                 <>
                                   <br />
                                   {u.customer_name}
+                                </>
+                              )}
+                              {holdText && (
+                                <>
+                                  <br />
+                                  {holdText}
+                                  {hold?.hold_lead_name ? ` · ${hold.hold_lead_name}` : ''}
                                 </>
                               )}
                             </span>

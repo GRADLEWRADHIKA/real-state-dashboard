@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
-import { CalendarCheck2, CalendarPlus, Check, MapPin, MoreHorizontal, Pencil, Phone, X } from 'lucide-react';
+import { CalendarCheck2, CalendarPlus, Check, MapPin, MoreHorizontal, Pencil, Phone, Star, X } from 'lucide-react';
 import { api } from '@/lib/api';
 import { can, useUser } from '@/lib/auth';
 import { fmtDate, fmtTime, relativeDay, todayStr } from '@/lib/format';
@@ -18,6 +18,7 @@ import { OutcomeModal, SiteVisitFormModal } from '@/components/domain/ScheduleFo
 import { CalendarPill, MonthCalendar, currentMonth, monthRange } from '@/components/ui/Calendar';
 import type { Paged, SiteVisit } from '@/types';
 import { PropertyThumb } from '@/components/domain/PropertyGallery';
+import { VisitRatingModal } from '@/components/domain/FeedbackForms';
 
 type Range = 'today' | 'upcoming' | 'past' | 'all' | 'calendar';
 
@@ -33,6 +34,7 @@ export default function SiteVisits() {
   const dq = useDebounce(q);
   const [edit, setEdit] = useState<SiteVisit | null>(null);
   const [complete, setComplete] = useState<SiteVisit | null>(null);
+  const [rate, setRate] = useState<SiteVisit | null>(null);
   const [month, setMonth] = useState(currentMonth());
   const [mFrom, mTo] = monthRange(month);
   const query = range === 'calendar' ? { from: mFrom, to: mTo, status, agent, q: dq } : { range: range === 'all' ? undefined : range, status, agent, q: dq };
@@ -166,6 +168,11 @@ export default function SiteVisits() {
                           Complete
                         </Button>
                       )}
+                      {v.status === 'Completed' && (
+                        <Button size="sm" variant="subtle" icon={<Star />} onClick={() => setRate(v)}>
+                          Record visitor rating
+                        </Button>
+                      )}
                       <Menu trigger={<Button size="icon-sm" variant="ghost" aria-label="More" icon={<MoreHorizontal />} />}>
                         <MenuItem icon={<Pencil />} onSelect={() => setEdit(v)}>
                           Edit / reschedule
@@ -200,6 +207,7 @@ export default function SiteVisits() {
           ))}
         </div>
       )}
+      <VisitRatingModal visit={rate} onClose={() => setRate(null)} />
       <SiteVisitFormModal open={newOpen} onClose={closeNew} />
       <SiteVisitFormModal open={!!edit} onClose={() => setEdit(null)} visit={edit} />
       <OutcomeModal

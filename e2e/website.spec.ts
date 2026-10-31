@@ -35,3 +35,26 @@ test('signed-in staff get the CRM at / and can still open the website pages', as
   await expect(page).toHaveURL(/\/$/);
   await expect(page.getByRole('navigation', { name: 'Website' })).toHaveCount(0);
 });
+
+test('visitors can shortlist two properties and compare them side by side', async ({ page }) => {
+  const errors = watchErrors(page);
+  await page.goto('/homes');
+  const cards = page.locator('article');
+  await expect(cards.nth(1)).toBeVisible();
+  const names = [(await cards.nth(0).getByRole('heading').innerText()).trim(), (await cards.nth(1).getByRole('heading').innerText()).trim()];
+  await cards.nth(0).getByRole('button', { name: 'Save to shortlist' }).click();
+  await cards.nth(1).getByRole('button', { name: 'Save to shortlist' }).click();
+  await expect(cards.nth(0).getByRole('button', { name: 'Save to shortlist' })).toHaveAttribute('aria-pressed', 'true');
+
+  await page.getByRole('navigation', { name: 'Website' }).getByRole('link', { name: 'Shortlist (2)' }).click();
+  await expect(page).toHaveURL(/\/homes\/shortlist$/);
+  await expect(page.getByRole('heading', { level: 1, name: 'My shortlist' })).toBeVisible();
+  for (const name of names) await page.getByRole('checkbox', { name: `Compare ${name}` }).check();
+  await page.getByRole('button', { name: /^Compare/ }).click();
+
+  await expect(page).toHaveURL(/\/homes\/compare\?slugs=[^,]+,[^,]+$/);
+  const table = page.getByRole('table');
+  for (const name of names) await expect(table.getByRole('columnheader').getByRole('link', { name, exact: true })).toBeVisible();
+  await expect(table.getByRole('rowheader', { name: 'Rate per sq ft' })).toBeVisible();
+  expect(errors).toEqual([]);
+});

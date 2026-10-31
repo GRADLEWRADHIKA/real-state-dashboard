@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowUpRight, Copy, GitMerge, MapPin, MessageSquareText, CalendarCheck2, CalendarPlus, Check, CircleX, FileText, ListChecks, Mail, MessageCircle, MoreHorizontal, Pencil, Phone, PhoneCall, Send, Sparkles, StickyNote, Trash2, Upload, UserRound } from 'lucide-react';
+import { ArrowUpRight, Copy, GitMerge, MapPin, MessageSquareText, CalendarCheck2, CalendarPlus, Check, CircleX, FileText, ListChecks, Mail, MessageCircle, MoreHorizontal, Pencil, Phone, PhoneCall, Send, Sparkles, Star, StickyNote, Trash2, Upload, UserRound } from 'lucide-react';
 import { api } from '@/lib/api';
 import { can, useUser } from '@/lib/auth';
 import { fmtDate, fmtDateTime, fmtTime, inr, inrShort, relativeDay, timeAgo, todayStr } from '@/lib/format';
@@ -20,6 +20,8 @@ import { FollowupFormModal, OutcomeModal, SiteVisitFormModal, TaskFormModal } fr
 import { ConvertLeadModal } from '@/components/domain/FinanceForms';
 import { DocumentList, UploadDocumentModal } from '@/components/domain/Documents';
 import { PropertyThumb } from '@/components/domain/PropertyGallery';
+import { IdleMarker, ScoreBadge, ScoreBar } from '@/components/domain/LeadHeat';
+import { VisitRatingModal } from '@/components/domain/FeedbackForms';
 import type { Activity, DocumentItem, Followup, Lead, Property, SiteVisit, Task } from '@/types';
 
 type LeadDetailData = Lead & {
@@ -198,6 +200,7 @@ export default function LeadDetail() {
   const [lostReason, setLostReason] = useState('');
   const [completeFu, setCompleteFu] = useState<Followup | null>(null);
   const [editVisit, setEditVisit] = useState<SiteVisit | null>(null);
+  const [rateVisit, setRateVisit] = useState<SiteVisit | null>(null);
   const {
     data: lead,
     isLoading,
@@ -509,6 +512,11 @@ export default function LeadDetail() {
                           {v.next_action && <p className="mt-1 text-[12.5px] text-stone-500">Next: {v.next_action}</p>}
                         </div>
                         <StatusBadge status={v.status} />
+                        {v.status === 'Completed' && (
+                          <Button size="icon-sm" variant="ghost" aria-label="Record visitor rating" title="Record visitor rating" onClick={() => setRateVisit(v)}>
+                            <Star />
+                          </Button>
+                        )}
                         <Button size="icon-sm" variant="ghost" aria-label="Update visit" onClick={() => setEditVisit(v)}>
                           <Pencil />
                         </Button>
@@ -582,6 +590,19 @@ export default function LeadDetail() {
                 </Button>
               }
             />
+            {lead.score !== undefined && lead.score !== null && (
+              <div className="mx-5 mb-4 rounded-xl border border-stone-100 bg-stone-50/70 px-3.5 py-3" data-testid="lead-score">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-[12px] font-medium text-stone-500">Lead score</span>
+                  <ScoreBadge score={lead.score} />
+                </div>
+                <ScoreBar score={lead.score} className="mt-2" />
+                <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-[12.5px] text-stone-600">{lead.score_reason}</p>
+                  <IdleMarker lead={lead} />
+                </div>
+              </div>
+            )}
             <dl className="grid grid-cols-2 gap-x-4 gap-y-4 px-5 pb-5">
               <InfoRow label="Phone">
                 <a href={telHref(lead.phone)} className="hover:text-brand-800">
@@ -592,6 +613,17 @@ export default function LeadDetail() {
               <InfoRow label="Location">{lead.location}</InfoRow>
               <InfoRow label="Budget">{lead.budget ? inr(lead.budget) : null}</InfoRow>
               <InfoRow label="Source">{lead.source}</InfoRow>
+              {lead.referred_by_name && (
+                <InfoRow label="Referred by">
+                  {lead.referred_by_customer_id ? (
+                    <Link to={`/customers/${lead.referred_by_customer_id}`} className="text-brand-800 hover:underline">
+                      {lead.referred_by_name}
+                    </Link>
+                  ) : (
+                    lead.referred_by_name
+                  )}
+                </InfoRow>
+              )}
               <InfoRow label="Looking for">{lead.property_type}</InfoRow>
               <InfoRow label="Last contact">{lead.last_contact ? timeAgo(lead.last_contact) : 'Never'}</InfoRow>
               <InfoRow label="Assigned to">{lead.agent_name}</InfoRow>
@@ -672,6 +704,7 @@ export default function LeadDetail() {
       <FollowupFormModal open={modal === 'followup'} onClose={() => setModal(null)} lead={lead} />
       <SiteVisitFormModal open={modal === 'visit'} onClose={() => setModal(null)} lead={lead} />
       <SiteVisitFormModal open={!!editVisit} onClose={() => setEditVisit(null)} visit={editVisit} />
+      <VisitRatingModal visit={rateVisit} onClose={() => setRateVisit(null)} />
       <TaskFormModal open={modal === 'task'} onClose={() => setModal(null)} lead={lead} />
       <LogContactModal open={modal === 'log'} onClose={() => setModal(null)} leadId={lead.id} />
       <UploadDocumentModal open={modal === 'upload'} onClose={() => setModal(null)} entityType="lead" entityId={lead.id} defaultType="ID Proof" />

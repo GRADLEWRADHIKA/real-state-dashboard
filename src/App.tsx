@@ -10,6 +10,10 @@ import type { Role } from '@/types';
 const Dashboard = lazy(() => import('@/pages/Dashboard'));
 const LeadsList = lazy(() => import('@/pages/leads/LeadsList'));
 const LeadDetail = lazy(() => import('@/pages/leads/LeadDetail'));
+const LeadInsights = lazy(() => import('@/pages/leads/LeadInsights'));
+const PriceList = lazy(() => import('@/pages/PriceList'));
+const Refunds = lazy(() => import('@/pages/finance/Refunds'));
+const Feedback = lazy(() => import('@/pages/Feedback'));
 const Pipeline = lazy(() => import('@/pages/Pipeline'));
 const PropertiesList = lazy(() => import('@/pages/properties/PropertiesList'));
 const PropertyDetail = lazy(() => import('@/pages/properties/PropertyDetail'));
@@ -93,10 +97,12 @@ export default function App() {
       <Route element={<AppShell />}>
         {user && <Route index element={user.role === 'accounts' ? <Navigate to="/finance" replace /> : guard(SALES, <Dashboard />)} />}
         <Route path="leads" element={guard(SALES, <LeadsList />)} />
+        <Route path="leads/insights" element={guard(SALES, <LeadInsights />)} />
         <Route path="leads/:id" element={guard(SALES, <LeadDetail />)} />
         <Route path="pipeline" element={guard(SALES, <Pipeline />)} />
         <Route path="properties" element={guard(STAFF, <PropertiesList />)} />
         <Route path="properties/:id" element={guard(STAFF, <PropertyDetail />)} />
+        <Route path="price-list" element={guard(STAFF, <PriceList />)} />
         <Route path="customers" element={guard(STAFF, <CustomersList />)} />
         <Route path="customers/:id" element={guard(STAFF, <CustomerDetail />)} />
         <Route path="deals" element={guard(SALES, <Deals />)} />
@@ -107,6 +113,8 @@ export default function App() {
         <Route path="finance/transactions" element={guard(FIN, <Transactions />)} />
         <Route path="finance/installments" element={guard(FIN, <Installments />)} />
         <Route path="expenses" element={guard(FIN, <Expenses />)} />
+        <Route path="refunds" element={guard(OFFICE, <Refunds />)} />
+        <Route path="feedback" element={guard(['admin', 'manager'], <Feedback />)} />
         <Route path="brokers" element={guard(OFFICE, <Brokers />)} />
         <Route path="brokers/:id" element={guard(OFFICE, <BrokerDetail />)} />
         <Route path="receipts/:id" element={guard(STAFF, <Receipt />)} />

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowRight, Building2, CalendarCheck2, Clock, Flame, Handshake, IndianRupee, Landmark, LayoutGrid, MapPin, Phone, PhoneCall, Plus, Sparkles, Trophy, UserCheck, UserCog, UserPlus, Users, Wallet } from 'lucide-react';
+import { ArrowRight, Building2, Hourglass, CalendarCheck2, Clock, Flame, Handshake, IndianRupee, Landmark, LayoutGrid, MapPin, Phone, PhoneCall, Plus, Sparkles, Trophy, UserCheck, UserCog, UserPlus, Users, Wallet } from 'lucide-react';
 import { api } from '@/lib/api';
 import { can, useUser } from '@/lib/auth';
 import { firstName, fmtDate, fmtDateTime, fmtTime, greeting, inr, inrShort, relativeDay, timeAgo } from '@/lib/format';
@@ -13,7 +13,7 @@ import { Avatar, Segmented, Tabs } from '@/components/ui/Misc';
 import { EmptyState, ErrorState, PageSkeleton, Skeleton } from '@/components/ui/Feedback';
 import { Donut, MonthlyBars, SegmentMeter, StageBars, StatCard } from '@/components/charts/Charts';
 import { ActivityIcon } from '@/components/domain/Timeline';
-import type { Activity, Followup, Overview, SiteVisit } from '@/types';
+import type { Activity, Followup, Lead, LeadInsights, Overview, SiteVisit } from '@/types';
 
 interface Kpi {
   value: number;
@@ -63,6 +63,54 @@ interface DashboardData {
     property_unit?: string;
     agent_name?: string;
   }[];
+}
+
+/** Managers' compact view of leads nobody has contacted for a while (from /leads/insights). */
+function StuckLeadsCard() {
+  const { data, isLoading } = useQuery({
+    queryKey: ['leads', 'insights', 7],
+    queryFn: () => api.get<LeadInsights>('/leads/insights', { days: 7 }),
+  });
+  const stuck: Lead[] = data?.stuck ?? [];
+  return (
+    <Card data-testid="stuck-leads-card">
+      <CardHeader
+        title="Stuck leads"
+        subtitle={data ? `${stuck.length} of ${data.open} open leads idle ${data.days}+ days` : 'Open leads nobody has contacted'}
+        icon={<Hourglass />}
+        action={
+          <ButtonLink to="/leads/insights" size="sm" variant="ghost">
+            Insights <ArrowRight />
+          </ButtonLink>
+        }
+      />
+      {isLoading ? (
+        <div className="space-y-2 px-5 pb-5">
+          <Skeleton className="h-10" />
+          <Skeleton className="h-10" />
+        </div>
+      ) : !stuck.length ? (
+        <EmptyState compact icon={<Hourglass />} title="No stuck leads" message="Every open lead was contacted recently." />
+      ) : (
+        <div className="px-5 pb-4">
+          <p className="num text-[28px] leading-none font-extrabold text-amber-700">{stuck.length}</p>
+          <ul className="mt-3 divide-y divide-stone-100">
+            {stuck.slice(0, 3).map((l) => (
+              <li key={l.id}>
+                <Link to={`/leads/${l.id}`} className="flex items-center justify-between gap-3 py-2 hover:text-brand-800">
+                  <span className="min-w-0">
+                    <span className="block truncate text-[13.5px] font-semibold text-ink">{l.name}</span>
+                    <span className="block truncate text-[12px] text-stone-500">{l.agent_name ?? 'Unassigned'}</span>
+                  </span>
+                  <span className="shrink-0 text-[12px] font-semibold text-amber-700">{l.idle_days} days idle</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </Card>
+  );
 }
 
 function FollowupList({ items, empty }: { items: Followup[]; empty: string }) {
@@ -530,7 +578,9 @@ export default function Dashboard() {
             )}
           </Card>
         )}
-        <Card className={data.leaderboard ? 'xl:col-span-2' : 'xl:col-span-5'}>
+        <div className={cn('space-y-4 sm:space-y-5', data.leaderboard ? 'xl:col-span-2' : 'xl:col-span-5')}>
+        {(user.role === 'admin' || user.role === 'manager') && <StuckLeadsCard />}
+        <Card>
           <CardHeader title="Recent activity" subtitle="Latest updates across the team" />
           {!data.recentActivity.length && <EmptyState compact icon={<Sparkles />} title="No activity yet" message="Calls, visits, bookings and payments will appear here." />}
           <ul className="space-y-0.5 px-3 pb-3">
@@ -552,6 +602,7 @@ export default function Dashboard() {
             ))}
           </ul>
         </Card>
+        </div>
       </div>
     </div>
   );

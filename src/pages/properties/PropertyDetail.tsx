@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
-import { BedDouble, Bath, CalendarCheck2, Car, Check, Compass, History, Layers, MapPin, Pencil, Ruler, Trash2, Upload, Users, KeyRound, LayoutGrid, IndianRupee } from 'lucide-react';
+import { BedDouble, Bath, CalendarCheck2, Car, Check, Compass, History, Layers, MapPin, Pencil, Ruler, Trash2, Upload, Users, KeyRound, LayoutGrid, IndianRupee, Hourglass } from 'lucide-react';
 import { api } from '@/lib/api';
 import { can, useUser } from '@/lib/auth';
 import { fmtDate, fmtTime, inr, inrShort, relativeDay } from '@/lib/format';
@@ -13,6 +13,7 @@ import { PageHeader, Progress } from '@/components/ui/Misc';
 import { EmptyState, ErrorState, PageSkeleton } from '@/components/ui/Feedback';
 import { useConfirm } from '@/components/ui/Modal';
 import { PropertyFormModal } from '@/components/domain/PropertyForm';
+import { HoldBanner, HoldModal } from '@/components/domain/HoldForms';
 import { GalleryManager, GalleryViewer } from '@/components/domain/PropertyGallery';
 import { DocumentList, UploadDocumentModal } from '@/components/domain/Documents';
 import type { DocumentItem, Property, PropertyHistoryEntry, SiteVisit } from '@/types';
@@ -55,6 +56,7 @@ export default function PropertyDetail() {
   const confirm = useConfirm();
   const [edit, setEdit] = useState(false);
   const [upload, setUpload] = useState(false);
+  const [holding, setHolding] = useState(false);
   const {
     data: p,
     isLoading,
@@ -119,7 +121,13 @@ export default function PropertyDetail() {
           </span>
         }
         actions={
-          can.editProperties(user.role) && (
+          <>
+            {can.sales(user.role) && p.status === 'Available' && (
+              <Button variant="primary" icon={<Hourglass />} onClick={() => setHolding(true)}>
+                Hold for buyer
+              </Button>
+            )}
+            {can.editProperties(user.role) && (
             <>
               <Button icon={<Upload />} onClick={() => setUpload(true)}>
                 Upload
@@ -146,7 +154,8 @@ export default function PropertyDetail() {
                 />
               )}
             </>
-          )
+            )}
+          </>
         }
       />
 
@@ -257,6 +266,8 @@ export default function PropertyDetail() {
                     <Progress value={(p.customer.paid / p.customer.total_value) * 100} />
                   </div>
                 </div>
+              ) : p.status === 'Reserved' && p.hold_until ? (
+                <HoldBanner property={p} />
               ) : (
                 <div className="rounded-xl border border-emerald-100 bg-emerald-50/60 p-4">
                   <p className="text-[14px] font-bold text-emerald-900">{p.status === 'Reserved' ? 'Reserved — token received' : 'Available for booking'}</p>
@@ -363,6 +374,7 @@ export default function PropertyDetail() {
           </Card>
         </div>
       </div>
+      {can.sales(user.role) && <HoldModal open={holding} onClose={() => setHolding(false)} property={p} />}
       <PropertyFormModal open={edit} onClose={() => setEdit(false)} property={p} />
       <UploadDocumentModal open={upload} onClose={() => setUpload(false)} entityType="property" entityId={p.id} defaultType="Property Documents" />
     </div>

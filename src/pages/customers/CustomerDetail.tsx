@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowUpRight, Ban, Camera, CheckCircle2, CircleUserRound, Download, Handshake, Inbox, IndianRupee, Landmark, Mail, MessageCircle, MessageSquareText, MoreHorizontal, Pencil, Phone, Receipt, Send, ShieldCheck, Upload, XCircle } from 'lucide-react';
+import { ArrowUpRight, Ban, Camera, CheckCircle2, CircleUserRound, Download, Handshake, Inbox, IndianRupee, Landmark, Mail, MessageCircle, MessageSquareText, MoreHorizontal, Pencil, Phone, Receipt, Send, ShieldCheck, Upload, UserPlus, XCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { api } from '@/lib/api';
 import { can, useUser } from '@/lib/auth';
@@ -23,7 +23,43 @@ import { FinancialSummary, InstallmentTable } from '@/components/domain/FinanceV
 import { RecordPaymentModal } from '@/components/domain/FinanceForms';
 import { DocumentSections, UploadDocumentModal } from '@/components/domain/Documents';
 import { PropertyThumb } from '@/components/domain/PropertyGallery';
+import { RefundCard } from '@/components/domain/RefundForms';
+import type { Lead, Paged } from '@/types';
 import type { Activity, Broker, Customer, CustomerRequest, Deal, DocumentItem, Financials, Installment, Property, Transaction } from '@/types';
+
+/** Leads this customer referred (source Referral, referred_by_customer_id = customer). */
+function ReferralsCard({ customerId }: { customerId: number }) {
+  const { data, isLoading } = useQuery({
+    queryKey: ['leads', 'referrals', customerId],
+    queryFn: () => api.get<Paged<Lead>>('/leads', { source: 'Referral', limit: 100 }).then((r) => r.data.filter((l) => l.referred_by_customer_id === customerId)),
+  });
+  return (
+    <Card className="overflow-hidden" data-testid="referrals-card">
+      <CardHeader title="Referrals" subtitle={data ? `${data.length} lead${data.length === 1 ? '' : 's'} referred by this customer` : 'Leads this customer referred'} icon={<UserPlus />} />
+      {isLoading ? (
+        <p className="px-5 pb-5 text-[13px] text-stone-400">Loading…</p>
+      ) : data && data.length ? (
+        <ul className="divide-y divide-stone-100 border-t border-stone-100">
+          {data.map((l) => (
+            <li key={l.id}>
+              <Link to={`/leads/${l.id}`} className="flex items-center gap-3 px-5 py-3 transition-colors hover:bg-stone-50">
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-[13.5px] font-semibold text-ink">{l.name}</p>
+                  <p className="truncate text-[12px] text-stone-500">
+                    {l.code} · {l.agent_name ?? 'Unassigned'}
+                  </p>
+                </div>
+                <StatusBadge status={l.status} />
+              </Link>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <EmptyState compact icon={<UserPlus />} title="No referrals yet" message="Leads this customer refers from the app appear here." />
+      )}
+    </Card>
+  );
+}
 
 type Detail = Customer & {
   property: Property | null;
@@ -701,6 +737,7 @@ export default function CustomerDetail() {
         </Card>
 
         <div className="grid grid-cols-1 content-start items-start gap-5 md:grid-cols-2 2xl:grid-cols-1">
+          {cancelled && (user.role === 'admin' || user.role === 'manager' || user.role === 'accounts') && <RefundCard customer={{ id: c.id, name: c.name }} />}
           <Card className="overflow-hidden">
             <CardHeader title="Property" />
             {c.property && (
@@ -857,6 +894,8 @@ export default function CustomerDetail() {
               <p className="mt-1 text-[12.5px] text-stone-500">Commission is worked out automatically on every payment.</p>
             </div>
           </Card>
+
+          {can.sales(user.role) && <ReferralsCard customerId={c.id} />}
 
           <Card className="p-4">
             <div className="flex items-start gap-3">
