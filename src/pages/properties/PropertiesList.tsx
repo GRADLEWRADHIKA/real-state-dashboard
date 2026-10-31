@@ -6,13 +6,13 @@ import { api } from '@/lib/api';
 import { can, useUser } from '@/lib/auth';
 import { inrShort } from '@/lib/format';
 import { PROPERTY_STATUSES, PROPERTY_TYPES, cn } from '@/lib/utils';
-import { useDebounce } from '@/hooks/queries';
+import { useDebounce, usePagedFilters } from '@/hooks/queries';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { FilterSelect, SearchInput } from '@/components/ui/Form';
 import { PropertyStatusBadge } from '@/components/ui/Badge';
 import { PageHeader, Segmented } from '@/components/ui/Misc';
-import { DataTable, type Column } from '@/components/ui/Table';
+import { DataTable, Pagination, type Column } from '@/components/ui/Table';
 import { EmptyState, ErrorState, Skeleton } from '@/components/ui/Feedback';
 import { PropertyArt } from '@/components/domain/PropertyArt';
 import { PropertyCover } from '@/components/domain/PropertyGallery';
@@ -77,9 +77,10 @@ export default function PropertiesList() {
     price_min: pmin || undefined,
     price_max: pmax || undefined,
   };
+  const [page, setPage] = usePagedFilters(query);
   const { data, isLoading, error, refetch } = useQuery({
-    queryKey: ['properties', query],
-    queryFn: () => api.get<PropertiesResponse>('/properties', { ...query, limit: 500 }),
+    queryKey: ['properties', query, page],
+    queryFn: () => api.get<PropertiesResponse>('/properties', { ...query, page, limit: 48 }),
     placeholderData: keepPreviousData,
   });
   const summary = Object.fromEntries((data?.meta.summary ?? []).map((s) => [s.status, s]));
@@ -315,6 +316,11 @@ export default function PropertiesList() {
               </div>
             </Link>
           ))}
+          {data.meta.total > data.meta.limit && (
+            <Card className="col-span-full overflow-hidden">
+              <Pagination meta={data.meta} onPage={setPage} className="border-t-0" />
+            </Card>
+          )}
         </div>
       ) : (
         <Card className="overflow-hidden">
@@ -340,6 +346,7 @@ export default function PropertiesList() {
               </div>
             )}
           />
+          <Pagination meta={data.meta} onPage={setPage} />
         </Card>
       )}
       <PropertyFormModal open={get('new') === '1'} onClose={() => setParam('new', '')} onSaved={(p) => navigate(`/properties/${p.id}`)} />

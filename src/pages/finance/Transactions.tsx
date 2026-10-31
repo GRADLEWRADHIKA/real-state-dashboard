@@ -29,16 +29,22 @@ const PERIODS = [
 /** Step 1 of recording a payment from the ledger: pick customer and installment. */
 function NewPaymentModal({ open, onClose, onPick }: { open: boolean; onClose: () => void; onPick: (i: Installment, customer: string) => void }) {
   const [customerId, setCustomerId] = useState('');
+  const [customerName, setCustomerName] = useState('');
+  const [find, setFind] = useState('');
+  const dfind = useDebounce(find);
+  // Customers are looked up by search, so every booking can be picked however many there are.
   const customers = useQuery({
-    queryKey: ['customers', 'options'],
+    queryKey: ['customers', 'options', 'active', dfind],
     queryFn: () =>
       api.get<Paged<Customer>>('/customers', {
-        limit: 500,
+        q: dfind || undefined,
+        limit: 50,
         sort: 'name',
         order: 'asc',
         status: 'Active',
       }),
     enabled: open,
+    placeholderData: keepPreviousData,
   });
   const insts = useQuery({
     queryKey: ['installments', 'customer', customerId],
@@ -50,7 +56,6 @@ function NewPaymentModal({ open, onClose, onPick }: { open: boolean; onClose: ()
   });
   const open_ = (insts.data?.data ?? []).filter((i) => i.balance > 0);
   const [instId, setInstId] = useState('');
-  const customer = customers.data?.data.find((c) => String(c.id) === customerId);
   return (
     <Modal
       open={open}
@@ -59,8 +64,8 @@ function NewPaymentModal({ open, onClose, onPick }: { open: boolean; onClose: ()
       description="Choose the customer and the installment being paid"
       onSubmit={() => {
         const i = open_.find((x) => String(x.id) === instId) ?? open_[0];
-        if (!i || !customer) return toast.error('Select a customer with an outstanding installment');
-        onPick(i, customer.name);
+        if (!i || !customerId) return toast.error('Select a customer with an outstanding installment');
+        onPick(i, customerName);
       }}
       footer={
         <>
@@ -72,23 +77,28 @@ function NewPaymentModal({ open, onClose, onPick }: { open: boolean; onClose: ()
       }
     >
       <div className="space-y-4">
-        <Field label="Customer">
+        <Field label="Customer" hint="Search by name, customer ID, phone or unit. The first 50 matches are listed.">
           {(id) => (
-            <Select
-              id={id}
-              value={customerId}
-              onChange={(e) => {
-                setCustomerId(e.target.value);
-                setInstId('');
-              }}
-            >
-              <option value="">Select customer</option>
-              {customers.data?.data.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name} — {c.property_project} {c.property_unit} ({inrShort(c.outstanding)} due)
-                </option>
-              ))}
-            </Select>
+            <div className="space-y-2">
+              <SearchInput value={find} onChange={setFind} placeholder="Search customers…" />
+              <Select
+                id={id}
+                value={customerId}
+                onChange={(e) => {
+                  setCustomerId(e.target.value);
+                  setCustomerName(customers.data?.data.find((c) => String(c.id) === e.target.value)?.name ?? '');
+                  setInstId('');
+                }}
+              >
+                <option value="">{customers.data && !customers.data.data.length ? 'No matches' : 'Select customer'}</option>
+                {customerId && !customers.data?.data.some((c) => String(c.id) === customerId) && <option value={customerId}>{customerName}</option>}
+                {customers.data?.data.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name} — {c.property_project} {c.property_unit} ({inrShort(c.outstanding)} due)
+                  </option>
+                ))}
+              </Select>
+            </div>
           )}
         </Field>
         {customerId && (
@@ -248,12 +258,8 @@ export default function Transactions() {
   );
 
   const exportCsv = async () => {
-    const all = await api.get<Paged<Transaction>>('/transactions', {
-      ...query,
-      page: 1,
-      limit: 500,
-    });
-    downloadCsv(`transactions-${todayStr()}.csv`, all.data as any, [
+    const all = await api.getAll<Transaction>('/transactions', { ...query, page: undefined, limit: undefined });
+    downloadCsv(`transactions-${todayStr()}.csv`, all as any, [
       { key: 'code', label: 'Transaction ID' },
       { key: 'receipt_number', label: 'Receipt No' },
       { key: 'customer_name', label: 'Customer' },
@@ -271,7 +277,7 @@ export default function Transactions() {
       { key: 'status', label: 'Status' },
       { key: 'notes', label: 'Notes' },
     ]);
-    toast.success(`Exported ${all.data.length} transactions`);
+    toast.success(`Exported ${all.length} transactions`);
   };
 
   return (

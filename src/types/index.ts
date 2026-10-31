@@ -59,7 +59,7 @@ export interface CustomerRefunds {
 /** GET /feedback */
 export interface FeedbackResponse {
   data: FeedbackItem[];
-  meta: {
+  meta: PageMeta & {
     summary: { kind: FeedbackItem['kind']; n: number; average: number | null; low: number }[];
     distribution: { rating: number; n: number }[];
     byAgent: { agent_id: number | null; agent_name: string | null; n: number; average: number | null }[];

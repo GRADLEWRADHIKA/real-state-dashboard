@@ -1,20 +1,20 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router';
-import { useQuery } from '@tanstack/react-query';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { Eye, KeyRound, LockOpen, LogOut, MoreHorizontal, Pencil, Power, ShieldCheck, UserCog, UserPlus } from 'lucide-react';
 import { DESIGNATIONS } from '@estateflow/shared';
 import { api } from '@/lib/api';
 import { useUser } from '@/lib/auth';
 import { fmtDateTime, timeAgo } from '@/lib/format';
 import { ROLE_LABEL, cn } from '@/lib/utils';
-import { useAction, useDebounce } from '@/hooks/queries';
+import { useAction, useDebounce, usePagedFilters } from '@/hooks/queries';
 import { required, useForm, validEmail } from '@/hooks/useForm';
 import { Card, InfoRow } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Field, FilterSelect, Input, SearchInput, Select } from '@/components/ui/Form';
 import { Badge, StatusBadge } from '@/components/ui/Badge';
 import { Avatar, Menu, MenuItem, MenuSeparator, PageHeader, Tabs } from '@/components/ui/Misc';
-import { DataTable, type Column } from '@/components/ui/Table';
+import { DataTable, Pagination, type Column } from '@/components/ui/Table';
 import { EmptyState, ErrorState } from '@/components/ui/Feedback';
 import { Modal, useConfirm } from '@/components/ui/Modal';
 import { IssuedCodeModal, ResetRequestsPanel } from '@/components/domain/ResetCodes';
@@ -41,15 +41,20 @@ const designationFor = (role: Role, title?: string | null) => (role === 'custome
 
 function UserFormModal({ open, onClose, user, presetRole }: { open: boolean; onClose: () => void; user?: User | null; presetRole?: Role }) {
   const editing = !!user;
+  const [findCustomer, setFindCustomer] = useState('');
+  const customerQ = useDebounce(findCustomer);
+  // Customers are looked up by search, so every booking can be picked however many there are.
   const customers = useQuery({
-    queryKey: ['customers', 'options'],
+    queryKey: ['customers', 'options', customerQ],
     queryFn: () =>
       api.get<Paged<Customer>>('/customers', {
-        limit: 500,
+        q: customerQ || undefined,
+        limit: 50,
         sort: 'name',
         order: 'asc',
       }),
     enabled: open,
+    placeholderData: keepPreviousData,
   });
   const f = useForm(
     {
@@ -135,16 +140,20 @@ function UserFormModal({ open, onClose, user, presetRole }: { open: boolean; onC
           )}
         </Field>
         {f.values.role === 'customer' && (
-          <Field label="Customer record" required error={f.errors.customer_id} className="sm:col-span-2">
+          <Field label="Customer record" required error={f.errors.customer_id} hint="Search by name, customer ID, phone or unit. The first 50 matches are listed." className="sm:col-span-2">
             {(id) => (
-              <Select id={id} {...f.bind('customer_id')}>
-                <option value="">Select customer</option>
-                {customers.data?.data.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name} · {c.code} · {c.property_project} {c.property_unit}
-                  </option>
-                ))}
-              </Select>
+              <div className="space-y-2">
+                <SearchInput value={findCustomer} onChange={setFindCustomer} placeholder="Search customers…" />
+                <Select id={id} {...f.bind('customer_id')}>
+                  <option value="">{customers.data && !customers.data.data.length ? 'No matches' : 'Select customer'}</option>
+                  {f.values.customer_id && !customers.data?.data.some((c) => String(c.id) === String(f.values.customer_id)) && <option value={f.values.customer_id}>Current customer record</option>}
+                  {customers.data?.data.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name} · {c.code} · {c.property_project} {c.property_unit}
+                    </option>
+                  ))}
+                </Select>
+              </div>
             )}
           </Field>
         )}
@@ -218,6 +227,7 @@ function UsersTab() {
   const [status, setStatus] = useState('');
   const [q, setQ] = useState('');
   const dq = useDebounce(q);
+  const [page, setPage] = usePagedFilters([role, status, dq]);
   const [edit, setEdit] = useState<User | null>(null);
   const [view, setView] = useState<User | null>(null);
   const [issued, setIssued] = useState<IssuedResetCode | null>(null);
@@ -227,8 +237,9 @@ function UsersTab() {
     error,
     refetch,
   } = useQuery({
-    queryKey: ['users', role, status, dq],
-    queryFn: () => api.get<Paged<User, { roleCounts: { role: Role; n: number }[] }>>('/users', { role, status, q: dq, limit: 500 }),
+    queryKey: ['users', role, status, dq, page],
+    queryFn: () => api.get<Paged<User, { roleCounts: { role: Role; n: number }[] }>>('/users', { role, status, q: dq, page, limit: 50 }),
+    placeholderData: keepPreviousData,
   });
   const data = resp?.data;
   const forceLogout = useAction((u: User) => api.post(`/users/${u.id}/force-logout`), { success: 'Signed out of every device', invalidate: [['users']] });
@@ -417,6 +428,7 @@ function UsersTab() {
             empty={<EmptyState icon={<UserCog />} title="No users match" />}
           />
         )}
+        {resp && <Pagination meta={resp.meta} onPage={setPage} />}
       </Card>
       <UserFormModal open={!!preset} onClose={() => setParams({}, { replace: true })} presetRole={(preset as Role) || 'sales'} />
       <UserFormModal open={!!edit} onClose={() => setEdit(null)} user={edit} />

@@ -302,7 +302,7 @@ interface BackupFile {
 export function BackupsPanel() {
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['backups'],
-    queryFn: () => api.get<{ data: BackupFile[]; meta: { folder: string } }>('/backups'),
+    queryFn: () => api.get<{ data: BackupFile[]; meta: { folder: string; uploads_folder?: string } }>('/backups'),
   });
   const [downloading, setDownloading] = useState<string | null>(null);
   const backup = useAction(() => api.post<BackupFile>('/backups'), { success: (b) => `Backup saved: ${b.name}`, invalidate: [['backups']] });
@@ -320,7 +320,7 @@ export function BackupsPanel() {
     <Card className="overflow-hidden">
       <CardHeader
         title="Backups"
-        subtitle="A copy of the database is saved automatically every day; the last 14 are kept."
+        subtitle="A copy of the database is saved automatically every day. The last 14 daily copies and the last 10 manual ones are kept."
         icon={<DatabaseBackup />}
         action={
           <Button variant="primary" size="sm" icon={<DatabaseBackup />} loading={backup.isPending} onClick={() => backup.mutate(undefined)}>
@@ -330,7 +330,7 @@ export function BackupsPanel() {
       />
       <p className="mx-5 mb-4 flex items-start gap-2 rounded-xl bg-amber-50 px-3.5 py-2.5 text-[12.5px] text-amber-900">
         <ShieldAlert className="mt-0.5 size-4 shrink-0" />
-        Uploaded files are not included — back up the uploads folder too.
+        Uploaded files are copied into the uploads folder below with every backup. Backups stay on the server’s own disk, so copy this folder somewhere else from time to time.
       </p>
       {error ? (
         <div className="px-5 pb-5 text-[13px] text-red-600">
@@ -360,7 +360,12 @@ export function BackupsPanel() {
           ))}
         </ul>
       )}
-      {data?.meta.folder && <p className="border-t border-stone-100 px-5 py-3 text-[12px] break-all text-stone-400">Saved on the server in {data.meta.folder}</p>}
+      {data?.meta.folder && (
+        <p className="border-t border-stone-100 px-5 py-3 text-[12px] break-all text-stone-400">
+          Saved on the server in {data.meta.folder}
+          {data.meta.uploads_folder && <> · uploads in {data.meta.uploads_folder}</>}
+        </p>
+      )}
     </Card>
   );
 }

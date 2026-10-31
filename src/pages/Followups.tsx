@@ -1,18 +1,19 @@
 import { useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router';
-import { useQuery } from '@tanstack/react-query';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { AlarmClock, CalendarClock, CalendarPlus, Check, CheckCheck, CircleSlash, MessageCircle, MoreHorizontal, Pencil, Phone, PhoneCall, Trash2 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { can, useUser } from '@/lib/auth';
 import { fmtDate, fmtTime, relativeDay, todayStr } from '@/lib/format';
 import { FOLLOWUP_TYPES, cn, telHref, waHref } from '@/lib/utils';
-import { useAction, useAgents, useDebounce } from '@/hooks/queries';
+import { useAction, useAgents, useDebounce, usePagedFilters } from '@/hooks/queries';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { FilterSelect, SearchInput } from '@/components/ui/Form';
 import { Badge, StatusBadge } from '@/components/ui/Badge';
 import { Menu, MenuItem, MenuSeparator, PageHeader } from '@/components/ui/Misc';
 import { EmptyState, ErrorState, Skeleton } from '@/components/ui/Feedback';
+import { Pagination } from '@/components/ui/Table';
 import { useConfirm } from '@/components/ui/Modal';
 import { FollowupFormModal, OutcomeModal } from '@/components/domain/ScheduleForms';
 import { CalendarPill, MonthCalendar, currentMonth, monthRange } from '@/components/ui/Calendar';
@@ -54,9 +55,13 @@ export default function Followups() {
     agent,
     q: dq,
   };
+  const [page, setPage] = usePagedFilters(query);
+  // The calendar shows one whole month; the lists are paged.
+  const paging = bucket === 'calendar' ? { limit: 500 } : { page, limit: 50 };
   const { data, isLoading, error, refetch } = useQuery({
-    queryKey: ['followups', query],
-    queryFn: () => api.get<Resp>('/followups', { ...query, limit: 500 }),
+    queryKey: ['followups', query, paging],
+    queryFn: () => api.get<Resp>('/followups', { ...query, ...paging }),
+    placeholderData: keepPreviousData,
   });
   const update = useAction((v: { id: number; body: Record<string, unknown> }) => api.put(`/followups/${v.id}`, v.body), { success: (r: any) => `Follow-up marked ${r.status.toLowerCase()}` });
   const del = useAction((id: number) => api.delete(`/followups/${id}`), {
@@ -66,9 +71,8 @@ export default function Followups() {
   const groups = useMemo(() => {
     const m = new Map<string, Followup[]>();
     (data?.data ?? []).forEach((f) => m.set(f.due_date, [...(m.get(f.due_date) ?? []), f]));
-    const entries = [...m.entries()];
-    return bucket === 'completed' ? entries.reverse() : entries;
-  }, [data, bucket]);
+    return [...m.entries()];
+  }, [data]);
 
   const s = data?.meta.summary;
   const cards: {
@@ -288,6 +292,11 @@ export default function Followups() {
               </Card>
             </section>
           ))}
+          {data && data.meta.total > data.meta.limit && (
+            <Card className="overflow-hidden">
+              <Pagination meta={data.meta} onPage={setPage} className="border-t-0" />
+            </Card>
+          )}
         </div>
       )}
       <FollowupFormModal

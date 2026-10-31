@@ -8,15 +8,15 @@ There are **no demo logins in production**. The one-tap demo accounts (`admin@de
 
 | Person | Designation to pick | Dashboard | App | What they see |
 |---|---|---|---|---|
-| Owner / Director | Director | Yes | Yes (view only) | Everything |
-| General Manager | General Manager | Yes | Yes (view only) | Everything |
+| Owner / Director | Director | Yes | Yes | Everything |
+| General Manager | General Manager | Yes | Yes | Everything |
 | Sales Manager | Sales Manager | Yes | Yes | The whole sales team's leads, customers, brokers, attendance and targets. No accounts. |
 | Accountant | Accountant | Yes | Yes | Money only: payments, receipts, expenses, salaries, broker commission |
 | Sales Executive / Sales Person | Sales Person | Yes | Yes | Only their own leads, follow-ups, site visits and customers |
 | Telecaller | Telecaller | Yes | Yes | Only their own leads and customers |
 | Customer (buyer) | Customer | **No** | Yes | Their own plot, payments, receipts, documents and requests |
 
-Director and General Manager have full administrator access. In the app, administrators can look but not change anything, so they make changes on the dashboard.
+Director and General Manager have full administrator access, on the dashboard and in the app.
 
 ## 1. The very first login (administrator)
 

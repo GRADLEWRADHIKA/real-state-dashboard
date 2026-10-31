@@ -13,6 +13,14 @@ export function useDebounce<T>(value: T, ms = 300) {
   return v;
 }
 
+/** Current page of a server-paged list; goes back to page 1 whenever `filters` change. */
+export function usePagedFilters(filters: unknown) {
+  const key = JSON.stringify(filters);
+  const [state, setState] = useState({ key, page: 1 });
+  const page = state.key === key ? state.page : 1;
+  return [page, (p: number) => setState({ key, page: p })] as const;
+}
+
 export const useMeta = () =>
   useQuery({
     queryKey: ['meta'],

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router';
-import { useQuery } from '@tanstack/react-query';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { Download, Inbox, ReceiptText, Undo2 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useUser } from '@/lib/auth';
@@ -9,7 +9,7 @@ import { Card, CardHeader } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { PageHeader } from '@/components/ui/Misc';
 import { EmptyState, ErrorState } from '@/components/ui/Feedback';
-import { DataTable, type Column } from '@/components/ui/Table';
+import { DataTable, Pagination, type Column } from '@/components/ui/Table';
 import { StatCard } from '@/components/charts/Charts';
 import { RecordRefundModal, canRecordRefund, downloadRefundReceipt } from '@/components/domain/RefundForms';
 import type { PendingRefund, Refund, RefundsResponse } from '@/types';
@@ -18,9 +18,11 @@ export default function Refunds() {
   const user = useUser();
   const canRecord = canRecordRefund(user.role);
   const [recording, setRecording] = useState<PendingRefund | null>(null);
+  const [page, setPage] = useState(1);
   const { data, isLoading, error, refetch } = useQuery({
-    queryKey: ['refunds', 'list'],
-    queryFn: () => api.get<RefundsResponse>('/refunds', { limit: 100 }),
+    queryKey: ['refunds', 'list', page],
+    queryFn: () => api.get<RefundsResponse>('/refunds', { page, limit: 50 }),
+    placeholderData: keepPreviousData,
   });
   const pending = data?.meta.pending ?? [];
   const openTotal = pending.reduce((s, p) => s + p.open, 0);
@@ -166,6 +168,7 @@ export default function Refunds() {
               )}
               empty={<EmptyState compact icon={<ReceiptText />} title="No refunds recorded yet" />}
             />
+            {data && <Pagination meta={data.meta} onPage={setPage} />}
           </Card>
         </div>
       )}

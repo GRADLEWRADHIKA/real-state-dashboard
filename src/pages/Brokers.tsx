@@ -6,14 +6,14 @@ import { api } from '@/lib/api';
 import { useUser } from '@/lib/auth';
 import { fmtDate, inr, inrShort, todayStr } from '@/lib/format';
 import { PAYMENT_METHODS, cn } from '@/lib/utils';
-import { useAction, useDebounce } from '@/hooks/queries';
+import { useAction, useDebounce, usePagedFilters } from '@/hooks/queries';
 import { required, useForm, validPhone } from '@/hooks/useForm';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Field, FilterSelect, Input, SearchInput, Select, Textarea } from '@/components/ui/Form';
 import { Badge, StatusBadge } from '@/components/ui/Badge';
 import { Avatar, Menu, MenuItem, PageHeader, Tabs } from '@/components/ui/Misc';
-import { DataTable, type Column } from '@/components/ui/Table';
+import { DataTable, Pagination, type Column } from '@/components/ui/Table';
 import { EmptyState, ErrorState } from '@/components/ui/Feedback';
 import { Modal } from '@/components/ui/Modal';
 import { StatCard } from '@/components/charts/Charts';
@@ -264,10 +264,11 @@ function BrokersTab({ canEdit }: { canEdit: boolean }) {
   const dq = useDebounce(q);
   const [status, setStatus] = useState('');
   const [edit, setEdit] = useState<Broker | null>(null);
-  const query = { q: dq, status, limit: 100 };
+  const query = { q: dq, status };
+  const [page, setPage] = usePagedFilters(query);
   const { data, isLoading, error, refetch } = useQuery({
-    queryKey: ['brokers', query],
-    queryFn: () => api.get<Paged<Broker>>('/brokers', query),
+    queryKey: ['brokers', query, page],
+    queryFn: () => api.get<Paged<Broker>>('/brokers', { ...query, page, limit: 50 }),
     placeholderData: keepPreviousData,
   });
   const columns: Column<Broker>[] = [
@@ -344,6 +345,7 @@ function BrokersTab({ canEdit }: { canEdit: boolean }) {
           empty={<EmptyState icon={<Handshake />} title="No brokers yet" message="Add the channel partners who bring you buyers, then pick the broker on each customer." />}
         />
       )}
+      {data && <Pagination meta={data.meta} onPage={setPage} />}
       <BrokerFormModal open={!!edit} onClose={() => setEdit(null)} broker={edit} />
     </Card>
   );
@@ -357,12 +359,13 @@ function CommissionsTab() {
   const [paying, setPaying] = useState<BrokerCommission | null>(null);
   const brokers = useQuery({
     queryKey: ['brokers', 'options'],
-    queryFn: () => api.get<Paged<Broker>>('/brokers', { limit: 100 }),
+    queryFn: () => api.get<Paged<Broker>>('/brokers', { limit: 500 }),
   });
-  const query = { status, broker, limit: 100 };
+  const query = { status, broker };
+  const [page, setPage] = usePagedFilters(query);
   const { data, isLoading, error, refetch } = useQuery({
-    queryKey: ['brokers', 'commissions', query],
-    queryFn: () => api.get<Paged<BrokerCommission, { totals: { due: number; paid: number } }>>('/brokers/commissions', query),
+    queryKey: ['brokers', 'commissions', query, page],
+    queryFn: () => api.get<Paged<BrokerCommission, { totals: { due: number; paid: number } }>>('/brokers/commissions', { ...query, page, limit: 50 }),
     placeholderData: keepPreviousData,
   });
   const columns = useCommissionColumns(canPay ? setPaying : null);
@@ -416,6 +419,7 @@ function CommissionsTab() {
             empty={<EmptyState icon={<BadgeIndianRupee />} title={status === 'Due' ? 'No commission due' : 'No commission found'} message="Commission is created automatically when a broker’s customer pays." />}
           />
         )}
+        {data && <Pagination meta={data.meta} onPage={setPage} />}
       </Card>
       <PayCommissionModal commission={paying} onClose={() => setPaying(null)} />
     </div>

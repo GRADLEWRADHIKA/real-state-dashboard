@@ -1,18 +1,19 @@
 import { useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
-import { useQuery } from '@tanstack/react-query';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { CalendarCheck2, CalendarPlus, Check, MapPin, MoreHorizontal, Pencil, Phone, Star, X } from 'lucide-react';
 import { api } from '@/lib/api';
 import { can, useUser } from '@/lib/auth';
 import { fmtDate, fmtTime, relativeDay, todayStr } from '@/lib/format';
 import { VISIT_STATUSES, cn, telHref } from '@/lib/utils';
-import { useAction, useAgents, useDebounce } from '@/hooks/queries';
+import { useAction, useAgents, useDebounce, usePagedFilters } from '@/hooks/queries';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { FilterSelect, SearchInput } from '@/components/ui/Form';
 import { StatusBadge } from '@/components/ui/Badge';
 import { Menu, MenuItem, PageHeader, Segmented } from '@/components/ui/Misc';
 import { EmptyState, ErrorState, Skeleton } from '@/components/ui/Feedback';
+import { Pagination } from '@/components/ui/Table';
 import { useConfirm } from '@/components/ui/Modal';
 import { OutcomeModal, SiteVisitFormModal } from '@/components/domain/ScheduleForms';
 import { CalendarPill, MonthCalendar, currentMonth, monthRange } from '@/components/ui/Calendar';
@@ -38,10 +39,15 @@ export default function SiteVisits() {
   const [month, setMonth] = useState(currentMonth());
   const [mFrom, mTo] = monthRange(month);
   const query = range === 'calendar' ? { from: mFrom, to: mTo, status, agent, q: dq } : { range: range === 'all' ? undefined : range, status, agent, q: dq };
-  const { data, isLoading, error, refetch } = useQuery({
-    queryKey: ['site-visits', query],
-    queryFn: () => api.get<Paged<SiteVisit>>('/site-visits', { ...query, limit: 500 }).then((r) => r.data),
+  const [page, setPage] = usePagedFilters(query);
+  // The calendar shows one whole month; the lists are paged.
+  const paging = range === 'calendar' ? { limit: 500 } : { page, limit: 50 };
+  const { data: res, isLoading, error, refetch } = useQuery({
+    queryKey: ['site-visits', query, paging],
+    queryFn: () => api.get<Paged<SiteVisit>>('/site-visits', { ...query, ...paging }),
+    placeholderData: keepPreviousData,
   });
+  const data = res?.data;
   const update = useAction((v: { id: number; body: Record<string, unknown> }) => api.put(`/site-visits/${v.id}`, v.body), { success: (r: any) => `Visit ${r.status.toLowerCase()}` });
 
   const groups = useMemo(() => {
@@ -205,6 +211,11 @@ export default function SiteVisits() {
               </Card>
             </section>
           ))}
+          {res && res.meta.total > res.meta.limit && (
+            <Card className="overflow-hidden">
+              <Pagination meta={res.meta} onPage={setPage} className="border-t-0" />
+            </Card>
+          )}
         </div>
       )}
       <VisitRatingModal visit={rate} onClose={() => setRate(null)} />

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router';
-import { useQuery } from '@tanstack/react-query';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { MessageSquareHeart, Star, Users } from 'lucide-react';
 import { api } from '@/lib/api';
 import { fmtDate } from '@/lib/format';
@@ -11,6 +11,8 @@ import { Badge } from '@/components/ui/Badge';
 import { Avatar, PageHeader } from '@/components/ui/Misc';
 import { EmptyState, ErrorState, PageSkeleton } from '@/components/ui/Feedback';
 import { Stars } from '@/components/domain/FeedbackForms';
+import { Pagination } from '@/components/ui/Table';
+import { usePagedFilters } from '@/hooks/queries';
 import type { FeedbackItem, FeedbackResponse } from '@/types';
 
 const KIND_LABEL: Record<FeedbackItem['kind'], string> = {
@@ -22,9 +24,11 @@ const KINDS = Object.keys(KIND_LABEL) as FeedbackItem['kind'][];
 
 export default function Feedback() {
   const [kind, setKind] = useState('');
+  const [page, setPage] = usePagedFilters(kind);
   const { data, isLoading, error, refetch } = useQuery({
-    queryKey: ['feedback', kind],
-    queryFn: () => api.get<FeedbackResponse>('/feedback', { kind: kind || undefined, limit: 100 }),
+    queryKey: ['feedback', kind, page],
+    queryFn: () => api.get<FeedbackResponse>('/feedback', { kind: kind || undefined, page, limit: 50 }),
+    placeholderData: keepPreviousData,
   });
   if (isLoading) return <PageSkeleton stats={3} />;
   if (error || !data) return <ErrorState error={error} onRetry={refetch} />;
@@ -142,6 +146,7 @@ export default function Feedback() {
         ) : (
           <EmptyState icon={<MessageSquareHeart />} title="No feedback yet" message="Visitor ratings and customer feedback from the portal appear here." />
         )}
+        <Pagination meta={data.meta} onPage={setPage} />
       </Card>
     </div>
   );

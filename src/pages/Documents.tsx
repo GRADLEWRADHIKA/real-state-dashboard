@@ -1,10 +1,10 @@
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { Upload } from 'lucide-react';
 import { toast } from 'sonner';
 import { api } from '@/lib/api';
 import { DOCUMENT_TYPES } from '@/lib/utils';
-import { useDebounce } from '@/hooks/queries';
+import { useDebounce, usePagedFilters } from '@/hooks/queries';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Field, FilterSelect, SearchInput, Select } from '@/components/ui/Form';
@@ -12,6 +12,7 @@ import { PageHeader, Tabs } from '@/components/ui/Misc';
 import { ErrorState, Skeleton } from '@/components/ui/Feedback';
 import { Modal } from '@/components/ui/Modal';
 import { DocumentList, UploadDocumentModal } from '@/components/domain/Documents';
+import { Pagination } from '@/components/ui/Table';
 import type { Customer, DocumentItem, Lead, Paged, Property } from '@/types';
 import { useUser, can } from '@/lib/auth';
 import { PRIVATE_FOLDERS, type PrivateFolder } from '@estateflow/shared';
@@ -22,14 +23,20 @@ function PickEntity({ open, onClose, onPick }: { open: boolean; onClose: () => v
   const user = useUser();
   const [type, setType] = useState<Entity>('customer');
   const [id, setId] = useState('');
+  const [find, setFind] = useState('');
+  const dfind = useDebounce(find);
+  // Records are looked up by search, so every record can be picked however many there are.
   const opts = useQuery({
-    queryKey: ['entity-options', type],
+    queryKey: ['entity-options', type, dfind],
     enabled: open,
+    placeholderData: keepPreviousData,
     queryFn: async () => {
+      const q = dfind || undefined;
       if (type === 'lead')
         return (
           await api.get<Paged<Lead>>('/leads', {
-            limit: 500,
+            q,
+            limit: 50,
             sort: 'name',
             order: 'asc',
           })
@@ -37,7 +44,8 @@ function PickEntity({ open, onClose, onPick }: { open: boolean; onClose: () => v
       if (type === 'customer')
         return (
           await api.get<Paged<Customer>>('/customers', {
-            limit: 500,
+            q,
+            limit: 50,
             sort: 'name',
             order: 'asc',
           })
@@ -45,7 +53,7 @@ function PickEntity({ open, onClose, onPick }: { open: boolean; onClose: () => v
           id: c.id,
           label: `${c.name} · ${c.property_project} ${c.property_unit}`,
         }));
-      return (await api.get<{ data: Property[] }>('/properties', { limit: 500 })).data.map((p) => ({
+      return (await api.get<{ data: Property[] }>('/properties', { q, limit: 50 })).data.map((p) => ({
         id: p.id,
         label: `${p.project} · ${p.unit_number}`,
       }));
@@ -78,6 +86,7 @@ function PickEntity({ open, onClose, onPick }: { open: boolean; onClose: () => v
               onChange={(e) => {
                 setType(e.target.value as Entity);
                 setId('');
+                setFind('');
               }}
             >
               {types.map((t) => (
@@ -88,16 +97,19 @@ function PickEntity({ open, onClose, onPick }: { open: boolean; onClose: () => v
             </Select>
           )}
         </Field>
-        <Field label="Record">
+        <Field label="Record" hint="Type a name, code, phone or unit to find it. The first 50 matches are listed.">
           {(fid) => (
-            <Select id={fid} value={id} onChange={(e) => setId(e.target.value)}>
-              <option value="">{opts.isLoading ? 'Loading…' : 'Select'}</option>
-              {opts.data?.map((o) => (
-                <option key={o.id} value={o.id}>
-                  {o.label}
-                </option>
-              ))}
-            </Select>
+            <div className="space-y-2">
+              <SearchInput value={find} onChange={setFind} placeholder={`Search ${type}s…`} />
+              <Select id={fid} value={id} onChange={(e) => setId(e.target.value)}>
+                <option value="">{opts.isLoading ? 'Loading…' : opts.data?.length ? 'Select' : 'No matches'}</option>
+                {opts.data?.map((o) => (
+                  <option key={o.id} value={o.id}>
+                    {o.label}
+                  </option>
+                ))}
+              </Select>
+            </div>
           )}
         </Field>
       </div>
@@ -118,17 +130,20 @@ export default function Documents() {
   const dq = useDebounce(q);
   const [pick, setPick] = useState(false);
   const [target, setTarget] = useState<{ type: Entity; id: number } | null>(null);
+  const [page, setPage] = usePagedFilters([entity, docType, dq]);
   const { data, isLoading, error, refetch } = useQuery({
-    queryKey: ['documents', entity, docType, dq],
+    queryKey: ['documents', entity, docType, dq, page],
     queryFn: () =>
       folder
-        ? api.get<{ data: DocumentItem[] }>('/vault', { folder: folder.key, doc_type: docType || undefined, q: dq || undefined }).then((r) => ({ ...r, meta: { total: r.data.length } }) as unknown as Paged<DocumentItem>)
+        ? api.get<Paged<DocumentItem>>('/vault', { folder: folder.key, doc_type: docType || undefined, q: dq || undefined, page, limit: 50 })
         : api.get<Paged<DocumentItem>>('/documents', {
-        entity_type: entity === 'all' ? undefined : entity,
-        doc_type: docType,
-        q: dq,
-        limit: 500,
-      }),
+            entity_type: entity === 'all' ? undefined : entity,
+            doc_type: docType,
+            q: dq,
+            page,
+            limit: 50,
+          }),
+    placeholderData: keepPreviousData,
   });
   return (
     <div>
@@ -183,6 +198,7 @@ export default function Documents() {
             }
           />
         )}
+        {data && <Pagination meta={data.meta} onPage={setPage} />}
       </Card>
       <PickEntity
         open={pick}

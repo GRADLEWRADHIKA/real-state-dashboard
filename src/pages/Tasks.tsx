@@ -1,12 +1,12 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
-import { useQuery } from '@tanstack/react-query';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { Check, ListChecks, MoreHorizontal, Pencil, Plus, Trash2, PlayCircle } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useUser } from '@/lib/auth';
 import { relativeDay, todayStr } from '@/lib/format';
 import { TASK_PRIORITIES, cn } from '@/lib/utils';
-import { useAction, useDebounce } from '@/hooks/queries';
+import { useAction, useDebounce, usePagedFilters } from '@/hooks/queries';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { FilterSelect, SearchInput } from '@/components/ui/Form';
@@ -15,7 +15,8 @@ import { Avatar, Menu, MenuItem, MenuSeparator, PageHeader, Tabs } from '@/compo
 import { EmptyState, ErrorState, Skeleton } from '@/components/ui/Feedback';
 import { useConfirm } from '@/components/ui/Modal';
 import { TaskFormModal } from '@/components/domain/ScheduleForms';
-import { CalendarPill, MonthCalendar, currentMonth } from '@/components/ui/Calendar';
+import { CalendarPill, MonthCalendar, currentMonth, monthRange } from '@/components/ui/Calendar';
+import { Pagination } from '@/components/ui/Table';
 import type { Paged, Task } from '@/types';
 
 export default function Tasks() {
@@ -29,10 +30,20 @@ export default function Tasks() {
   const [q, setQ] = useState('');
   const dq = useDebounce(q);
   const [edit, setEdit] = useState<Task | null>(null);
-  const { data, isLoading, error, refetch } = useQuery({
-    queryKey: ['tasks', priority, mine, dq],
-    queryFn: () => api.get<Paged<Task>>('/tasks', { priority, mine, q: dq, limit: 500 }).then((r) => r.data),
+  const [mFrom, mTo] = monthRange(month);
+  // The calendar shows one whole month; the tabs are paged on the server.
+  const query = tab === 'calendar' ? { priority, mine, q: dq, from: mFrom, to: mTo } : { priority, mine, q: dq, status: tab };
+  const [page, setPage] = usePagedFilters(query);
+  const paging = tab === 'calendar' ? { limit: 500 } : { page, limit: 50 };
+  const { data: res, isLoading, error, refetch } = useQuery({
+    queryKey: ['tasks', query, paging],
+    queryFn: () => api.get<Paged<Task, { statusCounts: Record<string, number> }>>('/tasks', { ...query, ...paging }),
+    placeholderData: keepPreviousData,
   });
+  const data = res?.data;
+  // Tab counts come from the server and follow the filters, so they cover every task, not just this page.
+  const [statusCounts, setStatusCounts] = useState<Record<string, number>>({});
+  if (res && tab !== 'calendar' && res.meta.statusCounts !== statusCounts) setStatusCounts(res.meta.statusCounts);
   const update = useAction((v: { id: number; body: Partial<Task> }) => api.put(`/tasks/${v.id}`, v.body), {
     success: (r: any) => (r.status === 'Completed' ? 'Task completed' : 'Task updated'),
   });
@@ -40,8 +51,8 @@ export default function Tasks() {
     success: 'Task deleted',
   });
 
-  const rows = useMemo(() => (data ?? []).filter((t) => (tab === 'open' ? t.status !== 'Completed' : t.status === tab)), [data, tab]);
-  const count = (s: string) => (data ?? []).filter((t) => (s === 'open' ? t.status !== 'Completed' : t.status === s)).length;
+  const rows = data ?? [];
+  const count = (s: string) => (s === 'open' ? Object.entries(statusCounts).reduce((t, [k, n]) => (k === 'Completed' ? t : t + n), 0) : (statusCounts[s] ?? 0));
   const isManager = user.role === 'admin' || user.role === 'manager';
 
   return (
@@ -97,7 +108,7 @@ export default function Tasks() {
             <MonthCalendar
               month={month}
               onMonth={setMonth}
-              items={(data ?? []).filter((t) => t.due_date?.startsWith(month))}
+              items={rows.filter((t) => t.due_date?.startsWith(month))}
               dateOf={(t) => t.due_date!}
               keyOf={(t) => t.id}
               renderItem={(t) => (
@@ -194,6 +205,7 @@ export default function Tasks() {
             })}
           </ul>
         )}
+        {res && tab !== 'calendar' && <Pagination meta={res.meta} onPage={setPage} />}
       </Card>
       <TaskFormModal
         open={params.get('new') === '1'}

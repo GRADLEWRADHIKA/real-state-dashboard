@@ -86,6 +86,15 @@ export const api = {
       throw e;
     }
   },
+  /** Every row of a paged list, fetched 500 at a time (for exports, which must not stop at one page). */
+  async getAll<T>(path: string, query: Query = {}): Promise<T[]> {
+    const rows: T[] = [];
+    for (let page = 1; ; page++) {
+      const r = await client.api.get<{ data: T[]; meta: { total: number } }>(path, { ...query, page, limit: 500 });
+      rows.push(...r.data);
+      if (!r.data.length || rows.length >= r.meta.total) return rows;
+    }
+  },
 };
 
 export function saveBlob(blob: Blob, fileName: string) {

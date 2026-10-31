@@ -171,12 +171,8 @@ export default function CustomersList() {
   );
 
   const exportCsv = async () => {
-    const all = await api.get<Resp>('/customers', {
-      ...query,
-      page: 1,
-      limit: 500,
-    });
-    downloadCsv(`customers-${todayStr()}.csv`, all.data as any, [
+    const all = await api.getAll<Customer>('/customers', { ...query, page: undefined, limit: undefined });
+    downloadCsv(`customers-${todayStr()}.csv`, all as any, [
       { key: 'code', label: 'Customer ID' },
       { key: 'name', label: 'Name' },
       { key: 'phone', label: 'Phone' },
@@ -196,7 +192,7 @@ export default function CustomersList() {
       { key: 'registry_date', label: 'Registry Date' },
       { key: 'broker_name', label: 'Broker' },
     ]);
-    toast.success(`Exported ${all.data.length} customers`);
+    toast.success(`Exported ${all.length} customers`);
   };
 
   const t = data?.meta.totals;

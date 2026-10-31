@@ -1,6 +1,6 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router';
-import { useQuery } from '@tanstack/react-query';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { Handshake } from 'lucide-react';
 import { api } from '@/lib/api';
 import { fmtDate, inr, inrShort } from '@/lib/format';
@@ -10,7 +10,7 @@ import { Card } from '@/components/ui/Card';
 import { SearchInput } from '@/components/ui/Form';
 import { StatusBadge } from '@/components/ui/Badge';
 import { PageHeader, Progress } from '@/components/ui/Misc';
-import { DataTable, type Column } from '@/components/ui/Table';
+import { DataTable, Pagination, type Column } from '@/components/ui/Table';
 import { EmptyState, ErrorState } from '@/components/ui/Feedback';
 import type { Deal, Paged } from '@/types';
 import { PropertyThumb } from '@/components/domain/PropertyGallery';
@@ -19,13 +19,30 @@ export default function Deals() {
   const navigate = useNavigate();
   const [stage, setStage] = useState('');
   const [q, setQ] = useState('');
+  const [page, setPage] = useState(1);
   const dq = useDebounce(q);
-  const { data, isLoading, error, refetch } = useQuery({
-    queryKey: ['deals', dq],
-    queryFn: () => api.get<Paged<Deal>>('/deals', { q: dq, limit: 500 }).then((r) => r.data),
+  type DealsMeta = { value: number; stages: { stage: string; n: number; value: number }[] };
+  // Stage cards count every matching deal, whichever stage is picked below.
+  const summary = useQuery({
+    queryKey: ['deals', 'summary', dq],
+    queryFn: () => api.get<Paged<Deal, DealsMeta>>('/deals', { q: dq, limit: 1 }).then((r) => r.meta),
   });
-  const rows = useMemo(() => (data ?? []).filter((d) => !stage || d.stage === stage), [data, stage]);
-  const byStage = (s: string) => (data ?? []).filter((d) => d.stage === s);
+  const { data, isLoading, error, refetch } = useQuery({
+    queryKey: ['deals', dq, stage, page],
+    queryFn: () => api.get<Paged<Deal, DealsMeta>>('/deals', { q: dq, stage: stage || undefined, page, limit: 25 }),
+    placeholderData: keepPreviousData,
+  });
+  const rows = data?.data ?? [];
+  const byStage = (s: string) => summary.data?.stages.find((x) => x.stage === s) ?? { n: 0, value: 0 };
+  const pickStage = (s: string) => {
+    setStage(stage === s ? '' : s);
+    setPage(1);
+  };
+  const search = (v: string) => {
+    setQ(v);
+    setPage(1);
+  };
+  const collected = (d: Deal) => (d.value > 0 ? ((d.paid ?? 0) / d.value) * 100 : 0);
 
   const columns: Column<Deal>[] = [
     {
@@ -79,8 +96,8 @@ export default function Deals() {
       header: 'Collected',
       cell: (d) => (
         <div className="w-28">
-          <p className="num text-[12.5px] font-semibold text-stone-700">{Math.round(((d.paid ?? 0) / d.value) * 100)}%</p>
-          <Progress value={((d.paid ?? 0) / d.value) * 100} size="sm" className="mt-1" />
+          <p className="num text-[12.5px] font-semibold text-stone-700">{Math.round(collected(d))}%</p>
+          <Progress value={collected(d)} size="sm" className="mt-1" />
         </div>
       ),
     },
@@ -96,21 +113,21 @@ export default function Deals() {
       <PageHeader title="Deals" subtitle="Every booking from token to possession" crumbs={[{ label: 'Home', to: '/' }, { label: 'Deals' }]} />
       <div className="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
         {DEAL_STAGES.map((s) => {
-          const list = byStage(s);
+          const total = byStage(s);
           return (
-            <button key={s} onClick={() => setStage(stage === s ? '' : s)} className={cn('card p-4 text-left transition-shadow hover:shadow-pop', stage === s && 'ring-2 ring-brand-600/40')}>
+            <button key={s} onClick={() => pickStage(s)} className={cn('card p-4 text-left transition-shadow hover:shadow-pop', stage === s && 'ring-2 ring-brand-600/40')}>
               <p className="text-[12.5px] font-semibold text-stone-500">{s}</p>
-              <p className="mt-1 text-[24px] font-extrabold text-ink">{list.length}</p>
-              <p className="text-[12px] text-stone-400">{inrShort(list.reduce((t, d) => t + d.value, 0))}</p>
+              <p className="mt-1 text-[24px] font-extrabold text-ink">{total.n}</p>
+              <p className="text-[12px] text-stone-400">{inrShort(total.value)}</p>
             </button>
           );
         })}
       </div>
       <Card className="overflow-hidden">
         <div className="flex items-center justify-between gap-3 border-b border-stone-100 px-4 py-3 sm:px-5">
-          <SearchInput value={q} onChange={setQ} placeholder="Search deal, customer, project…" className="w-full sm:w-72" />
+          <SearchInput value={q} onChange={search} placeholder="Search deal, customer, project…" className="w-full sm:w-72" />
           <p className="hidden text-[13px] text-stone-500 sm:block">
-            Total <b className="text-ink">{inr(rows.reduce((t, d) => t + d.value, 0))}</b>
+            Total <b className="text-ink">{inr(data?.meta.value ?? 0)}</b>
           </p>
         </div>
         {error ? (
@@ -135,13 +152,14 @@ export default function Deals() {
                 </div>
                 <div className="mt-2 flex items-center justify-between text-[12.5px]">
                   <span className="font-bold text-ink">{inrShort(d.value)}</span>
-                  <span className="text-stone-500">{Math.round(((d.paid ?? 0) / d.value) * 100)}% collected</span>
+                  <span className="text-stone-500">{Math.round(collected(d))}% collected</span>
                 </div>
               </div>
             )}
             empty={<EmptyState icon={<Handshake />} title="No deals yet" message="Deals are created when a lead is converted to a customer." />}
           />
         )}
+        {data && <Pagination meta={data.meta} onPage={setPage} />}
       </Card>
     </div>
   );
